@@ -1,0 +1,10 @@
+name = "dc-siborong-borong"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Opsional: set secret BinderByte untuk kurir selain SPX
+# npx wrangler secret put BINDERBYTE_API_KEY
