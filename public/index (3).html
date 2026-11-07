@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#1e40af" />
+  <meta name="description" content="DC Siborong Borong - History Paket, Scan QR, Cek Resi SPX & Stok" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DC Siborong" />
+  <title>DC Siborong Borong</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+    .badge-received     { background: #dbeafe; color: #1e40af; }
+    .badge-packed       { background: #fef3c7; color: #92400e; }
+    .badge-transporting { background: #e0e7ff; color: #3730a3; }
+    .badge-transported  { background: #d1fae5; color: #065f46; }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    #reader { border-radius: 12px; overflow: hidden; }
+    #reader video { border-radius: 12px; }
+    .photo-preview { max-height: 120px; border-radius: 10px; object-fit: cover; cursor: pointer; }
+    #lightbox { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.92); align-items: center; justify-content: center; padding: 16px; }
+    #lightbox.show { display: flex; }
+    #lightbox img { max-width: 100%; max-height: 90vh; border-radius: 12px; object-fit: contain; }
+    #lightbox .close-btn { position: absolute; top: 16px; right: 16px; background: white; color: #111; border: none; border-radius: 999px; width: 40px; height: 40px; font-size: 22px; font-weight: bold; cursor: pointer; }
+    #pin-modal { display: none; position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,0.55); align-items: center; justify-content: center; padding: 16px; }
+    #pin-modal.show { display: flex; }
+    .timeline-item { border-left: 2px solid #bfdbfe; padding-left: 12px; margin-left: 6px; padding-bottom: 10px; }
+    .timeline-item:last-child { border-left-color: transparent; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-24">
+
+  <header class="bg-blue-800 text-white sticky top-0 z-30 shadow-md">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-bold leading-tight">DC Siborong Borong</h1>
+        <p class="text-xs text-blue-200">History · Scan QR · Cek Resi · Stok</p>
+      </div>
+      <div class="text-right">
+        <p class="text-[10px] text-blue-300">Powered by</p>
+        <p class="text-xs font-medium text-blue-100">Amos rcpdroid ~86</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-3 py-4">
+    <div class="flex gap-1.5 mb-4 overflow-x-auto pb-1">
+      <button onclick="showTab('history')" id="tab-history" class="flex-shrink-0 px-3 py-2 rounded-xl font-semibold text-xs bg-blue-700 text-white shadow">📦 History</button>
+      <button onclick="showTab('scan')" id="tab-scan" class="flex-shrink-0 px-3 py-2 rounded-xl font-semibold text-xs bg-gray-200 text-gray-700">📷 Scan QR</button>
+      <button onclick="showTab('cek')" id="tab-cek" class="flex-shrink-0 px-3 py-2 rounded-xl font-semibold text-xs bg-gray-200 text-gray-700">🔍 Cek Resi</button>
+      <button onclick="showTab('stok')" id="tab-stok" class="flex-shrink-0 px-3 py-2 rounded-xl font-semibold text-xs bg-gray-200 text-gray-700">📋 Stok</button>
+      <button onclick="showTab('sj')" id="tab-sj" class="flex-shrink-0 px-3 py-2 rounded-xl font-semibold text-xs bg-gray-200 text-gray-700">🚚 Surat Jalan</button>
+      <button onclick="showTab('laporan')" id="tab-laporan" class="flex-shrink-0 px-3 py-2 rounded-xl font-semibold text-xs bg-gray-200 text-gray-700">📊 Laporan</button>
+    </div>
+
+    <!-- HISTORY -->
+    <section id="panel-history">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-4">
+        <h2 class="font-semibold text-gray-800 mb-3 text-sm" id="form-title">+ Tambah History Baru</h2>
+        <form id="form-history" class="space-y-3">
+          <input type="hidden" id="edit-id" />
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">No. Resi / Tracking</label>
+            <div class="flex gap-2">
+              <input type="text" id="resi" required placeholder="Scan QR atau ketik manual" class="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+              <button type="button" onclick="showTab('scan')" class="bg-blue-100 text-blue-700 px-3 rounded-xl text-sm font-medium">📷</button>
+              <button type="button" onclick="cekResiDariForm()" class="bg-green-100 text-green-700 px-3 rounded-xl text-sm font-medium">Cek</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Jenis Masalah</label>
+              <select id="masalah" required class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+                <option value="">-- Pilih --</option>
+                <option value="Rusak">Rusak</option>
+                <option value="Hilang">Hilang</option>
+                <option value="Salah Kirim">Salah Kirim</option>
+                <option value="Terlambat">Terlambat</option>
+                <option value="Isi Kurang">Isi Kurang</option>
+                <option value="Kemasan Rusak">Kemasan Rusak</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+              <select id="status" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+                <option value="received">Received</option>
+                <option value="packed">Packed</option>
+                <option value="transporting">Transporting</option>
+                <option value="transported">Transported</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Keterangan</label>
+            <input type="text" id="keterangan" placeholder="Detail tambahan..." class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+          </div>
+          <div id="spx-info" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800"></div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Foto Paket (opsional)</label>
+            <div class="flex items-center gap-3">
+              <label class="flex-1 border border-dashed border-gray-300 rounded-xl px-3 py-3 text-center text-sm text-gray-500 cursor-pointer">
+                📸 Ambil / Pilih Foto
+                <input type="file" id="foto-input" accept="image/*" capture="environment" class="hidden" onchange="handleFoto(event)" />
+              </label>
+              <img id="foto-preview" class="photo-preview hidden" onclick="openLightbox(this.src)" />
+              <button type="button" id="btn-hapus-foto" onclick="hapusFoto()" class="hidden text-red-500 text-xs">Hapus</button>
+            </div>
+            <input type="hidden" id="foto-data" />
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="submit" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl font-medium text-sm">Simpan</button>
+            <button type="button" id="btn-batal" onclick="resetForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl font-medium text-sm">Batal</button>
+          </div>
+        </form>
+      </div>
+      <div class="flex flex-col gap-2 mb-3">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="text" id="search" placeholder="Cari resi / masalah..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none" oninput="loadHistory()" />
+          <select id="filter-status" onchange="loadHistory()" class="border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white">
+            <option value="semua">Semua Status</option>
+            <option value="received">Received</option>
+            <option value="packed">Packed</option>
+            <option value="transporting">Transporting</option>
+            <option value="transported">Transported</option>
+          </select>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2 items-center">
+          <input type="date" id="filter-date-from" onchange="loadHistory()" class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white" />
+          <span class="text-xs text-gray-400 hidden sm:inline">s/d</span>
+          <input type="date" id="filter-date-to" onchange="loadHistory()" class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white" />
+          <button type="button" onclick="clearDateFilter()" class="px-3 py-2 text-xs text-gray-600 bg-gray-100 rounded-xl whitespace-nowrap">Reset Tanggal</button>
+          <button onclick="exportCSV()" class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">⬇ CSV</button>
+        </div>
+      </div>
+      <div id="history-list" class="space-y-2"><p class="text-center text-gray-400 text-sm py-8">Memuat data...</p></div>
+    </section>
+
+    <!-- SCAN -->
+    <section id="panel-scan" class="hidden">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-4">
+        <h2 class="font-semibold text-gray-800 mb-2 text-sm">📷 Scan QR / Barcode Resi</h2>
+        <p class="text-xs text-gray-500 mb-3">Arahkan kamera ke QR/barcode di label paket</p>
+        <div id="reader" class="w-full mb-3"></div>
+        <div class="flex gap-2 mb-3">
+          <button id="btn-start-scan" onclick="startScan()" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Mulai Scan</button>
+          <button id="btn-stop-scan" onclick="stopScan()" class="hidden flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-medium">Stop</button>
+        </div>
+        <div id="scan-result" class="hidden bg-green-50 border border-green-200 rounded-xl p-3">
+          <p class="text-xs text-green-700 font-medium mb-1">Hasil Scan:</p>
+          <p id="scanned-resi" class="font-mono text-sm font-bold text-gray-800 break-all"></p>
+          <div class="flex gap-2 mt-3">
+            <button onclick="gunakanHasilScan()" class="flex-1 bg-blue-700 text-white py-2 rounded-xl text-xs font-medium">Ke History + Cek</button>
+            <button onclick="cekResiScanned()" class="flex-1 bg-green-600 text-white py-2 rounded-xl text-xs font-medium">Cek Resi Saja</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CEK RESI -->
+    <section id="panel-cek" class="hidden">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-4">
+        <h2 class="font-semibold text-gray-800 mb-3 text-sm">🔍 Cek Resi Multi Kurir</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Kurir</label>
+            <select id="cek-courier" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+              <option value="spx">Shopee Express (SPX)</option>
+              <option value="jne">JNE</option>
+              <option value="jnt">J&T</option>
+              <option value="sicepat">SiCepat</option>
+              <option value="anteraja">AnterAja</option>
+              <option value="pos">Pos Indonesia</option>
+              <option value="ninja">Ninja Express</option>
+              <option value="lion">Lion Parcel</option>
+              <option value="auto">Auto Deteksi</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Nomor Resi</label>
+            <input type="text" id="cek-resi" placeholder="Tempel / ketik nomor resi..." class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none font-mono" />
+          </div>
+          <button onclick="trackResiUI()" id="btn-track" class="w-full bg-blue-700 text-white py-2.5 rounded-xl font-medium text-sm">Cek Sekarang</button>
+        </div>
+        <div id="cek-result" class="mt-4 hidden"></div>
+      </div>
+    </section>
+
+    <!-- STOK -->
+    <section id="panel-stok" class="hidden">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-4">
+        <h2 class="font-semibold text-gray-800 mb-3 text-sm" id="stok-form-title">+ Tambah Barang Stok</h2>
+        <form id="form-stok" class="space-y-3">
+          <input type="hidden" id="stok-edit-id" />
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Nama Barang</label>
+            <input type="text" id="stok-nama" required placeholder="Contoh: Kardus M" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Jumlah</label>
+              <input type="number" id="stok-jumlah" required min="0" value="0" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Satuan</label>
+              <input type="text" id="stok-satuan" value="pcs" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Lokasi / Rak</label>
+            <input type="text" id="stok-lokasi" placeholder="Gudang A - Rak 3" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl font-medium text-sm">Simpan Stok</button>
+            <button type="button" id="stok-btn-batal" onclick="resetStokForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Batal</button>
+          </div>
+        </form>
+      </div>
+      <div id="stok-list" class="space-y-2"></div>
+    </section>
+
+
+    <!-- SURAT JALAN -->
+    <section id="panel-sj" class="hidden">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 mb-4">
+        <h2 class="font-semibold text-gray-800 mb-3 text-sm" id="sj-form-title">+ Buat Surat Jalan Pemberangkatan</h2>
+        <form id="form-sj" class="space-y-3">
+          <input type="hidden" id="sj-edit-id" />
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Nomor LT (Line Trip)</label>
+            <input type="text" id="sj-lt" required placeholder="Contoh: LT123456" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none font-mono uppercase" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Berat Barang (kg)</label>
+              <input type="number" id="sj-berat" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Jumlah Barang</label>
+              <input type="number" id="sj-jumlah" required min="0" step="1" placeholder="0" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">High Value</label>
+              <select id="sj-hv" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+                <option value="Tidak">Tidak</option>
+                <option value="Ya">Ya</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Nilai HV (opsional)</label>
+              <input type="text" id="sj-hv-nilai" placeholder="Rp / keterangan" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Tujuan / Keterangan</label>
+            <input type="text" id="sj-tujuan" placeholder="DC tujuan / catatan" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Foto / Bukti (opsional)</label>
+            <div class="flex items-center gap-3">
+              <label class="flex-1 border border-dashed border-gray-300 rounded-xl px-3 py-3 text-center text-sm text-gray-500 cursor-pointer">
+                📸 Ambil / Pilih Foto
+                <input type="file" id="sj-foto-input" accept="image/*" capture="environment" class="hidden" onchange="handleSjFoto(event)" />
+              </label>
+              <img id="sj-foto-preview" class="photo-preview hidden" onclick="openLightbox(this.src)" />
+              <button type="button" id="sj-btn-hapus-foto" onclick="hapusSjFoto()" class="hidden text-red-500 text-xs">Hapus</button>
+            </div>
+            <input type="hidden" id="sj-foto-data" />
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="submit" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl font-medium text-sm">Simpan Surat Jalan</button>
+            <button type="button" id="sj-btn-batal" onclick="resetSjForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Batal</button>
+          </div>
+        </form>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input type="text" id="sj-search" placeholder="Cari nomor LT..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none" oninput="loadSj()" />
+      </div>
+      <div id="sj-list" class="space-y-2"></div>
+    </section>
+
+    <!-- LAPORAN -->
+    <section id="panel-laporan" class="hidden">
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 text-center">
+          <p class="text-2xl font-bold text-blue-700" id="stat-total">0</p>
+          <p class="text-xs text-gray-500">Total History</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 text-center">
+          <p class="text-2xl font-bold text-blue-600" id="stat-pending">0</p>
+          <p class="text-xs text-gray-500">Received</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 text-center">
+          <p class="text-2xl font-bold text-yellow-600" id="stat-proses">0</p>
+          <p class="text-xs text-gray-500">Packed / Transporting</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 text-center">
+          <p class="text-2xl font-bold text-green-600" id="stat-selesai">0</p>
+          <p class="text-xs text-gray-500">Transported</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-4">
+        <h3 class="font-semibold text-sm text-gray-800 mb-3">Jenis Masalah</h3>
+        <div id="stat-masalah" class="space-y-2 text-sm"></div>
+      </div>
+      <button onclick="exportCSV()" class="w-full bg-green-600 text-white py-3 rounded-xl font-medium text-sm mb-2">⬇ Export CSV</button>
+      <button onclick="requirePin(() => clearAllData(), 'PIN untuk Hapus Semua Data')" class="w-full bg-red-100 text-red-600 py-2.5 rounded-xl text-sm">Hapus Semua Data Lokal</button>
+    </section>
+  </main>
+
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <button class="close-btn" onclick="closeLightbox(event)" type="button">×</button>
+    <img id="lightbox-img" src="" alt="Foto paket" />
+  </div>
+
+  <div id="pin-modal">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-xl" onclick="event.stopPropagation()">
+      <h3 class="font-semibold text-gray-800 mb-1" id="pin-title">Masukkan PIN</h3>
+      <p class="text-xs text-gray-500 mb-3" id="pin-desc">Diperlukan untuk Edit / Hapus data</p>
+      <input type="password" id="pin-input" inputmode="numeric" maxlength="8" placeholder="PIN" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none mb-2" />
+      <p id="pin-error" class="text-xs text-red-600 hidden mb-2">PIN salah</p>
+      <div class="flex gap-2">
+        <button type="button" onclick="closePinModal()" class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium">Batal</button>
+        <button type="button" onclick="submitPin()" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">OK</button>
+      </div>
+      <button type="button" onclick="showUbahPin()" class="w-full mt-3 text-xs text-blue-600">Ubah PIN</button>
+    </div>
+  </div>
+
+  <footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-bottom z-20">
+    <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between text-xs text-gray-500">
+      <span>DC Siborong Borong</span>
+      <span class="text-[10px]">Powered by Amos rcpdroid ~86</span>
+    </div>
+  </footer>
+
+  <script>
+    const STORAGE_KEY = 'dc_siborong_data_v3';
+    const PIN_KEY = 'dc_siborong_pin';
+    const DEFAULT_PIN = '1234';
+    const API_TRACK = '/api/track';
+    let html5QrCode = null;
+    let lastScanned = '';
+    let pendingPinAction = null;
+    let lastSpxStatus = '';
+
+    function getData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const d = JSON.parse(raw);
+          if (!d.sj) d.sj = [];
+          if (!d.history) d.history = [];
+          if (!d.stok) d.stok = [];
+          return d;
+        }
+      } catch(e) {}
+      return { history: [], stok: [], sj: [] };
+    }
+    function saveData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+    function showTab(name) {
+      ['history','scan','cek','stok','sj','laporan'].forEach(t => {
+        document.getElementById('panel-' + t).classList.toggle('hidden', t !== name);
+        const btn = document.getElementById('tab-' + t);
+        btn.className = t === name
+          ? 'flex-shrink-0 px-3 py-2 rounded-xl font-semibold text-xs bg-blue-700 text-white shadow'
+          : 'flex-shrink-0 px-3 py-2 rounded-xl font-semibold text-xs bg-gray-200 text-gray-700';
+      });
+      if (name === 'stok') loadStok();
+      if (name === 'sj') loadSj();
+      if (name === 'laporan') loadLaporan();
+      if (name !== 'scan') stopScan();
+    }
+
+    function cleanResi(text) {
+      if (!text) return '';
+      let c = String(text).trim().toUpperCase();
+      const spx = c.match(/SPX[A-Z0-9]{8,}/i);
+      if (spx) return spx[0].toUpperCase();
+      const to = c.match(/TO[A-Z0-9]{6,}/i);
+      if (to) return to[0].toUpperCase();
+      return c.replace(/[^A-Z0-9\-]/g, '');
+    }
+
+    // ===== TRACK API (via Cloudflare Worker) =====
+    async function trackResi(resi, courier) {
+      resi = cleanResi(resi);
+      courier = (courier || 'spx').toLowerCase();
+      if (!resi || resi.length < 6) throw new Error('Nomor resi tidak valid');
+      const url = API_TRACK + '?resi=' + encodeURIComponent(resi) + '&courier=' + encodeURIComponent(courier);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }
+
+    function formatTrackResult(json) {
+      if (!json) return '<p class="text-red-600 text-sm">Tidak ada respons</p>';
+      if (!json.success) {
+        let html = '<div class="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">';
+        html += '<p class="font-medium">' + escapeHtml(json.message || 'Gagal') + '</p>';
+        if (json.officialUrl) html += '<a href="' + json.officialUrl + '" target="_blank" class="underline text-xs mt-1 inline-block">Buka situs resmi</a>';
+        html += '</div>';
+        return html;
+      }
+
+      // Struktur SPX dari worker: { success, courier, resi, data }
+      // data biasanya response mentah SPX atau hasil BinderByte
+      const root = json.data || {};
+      const inner = root.data || root; // SPX: data.data
+      const detail = root.detail || {};
+      const summary = root.summary || {};
+
+      // tracking_list order tracking
+      let list = inner.tracking_list || root.tracking_list || inner.sls_tracking_list || [];
+      if (!Array.isArray(list)) list = [];
+      if (!list.length && Array.isArray(root.history)) list = root.history;
+      if (!list.length && Array.isArray(detail.history)) list = detail.history;
+      if (!list.length && Array.isArray(summary.history)) list = summary.history;
+
+      const status = inner.status || inner.current_status || detail.status || summary.status || root.status || 'Ditemukan';
+      const courierName = (json.courier || 'spx').toUpperCase();
+      const resi = json.resi || '';
+      const recipient = inner.recipient_name || detail.receiver || detail.consignee || summary.receiver || '';
+      const phone = inner.phone || detail.phone || '';
+      const deliveryType = inner.delivery_type || detail.service || summary.service || '';
+      const dest = detail.destination || summary.destination || inner.destination || '';
+      const origin = detail.origin || summary.origin || inner.origin || '';
+
+      function box(title, value) {
+        if (!value) return '';
+        return '<div class="bg-gray-50 rounded-xl px-3 py-2 mb-2"><p class="text-[10px] text-gray-400">' + title + '</p><p class="text-sm font-semibold text-gray-800 break-all">' + escapeHtml(String(value)) + '</p></div>';
+      }
+
+      let html = '<div class="border border-green-200 bg-white rounded-xl p-3 text-sm">';
+      html += box('Kurir', courierName);
+      html += box('Nomor Resi', resi);
+      html += box('Status Terakhir', status);
+      html += box('Layanan', deliveryType);
+      html += box('Asal', origin);
+      html += box('Tujuan', dest);
+      html += box('Penerima', recipient);
+      html += box('Telepon', phone);
+
+      if (!dest && !recipient && courierName === 'SPX') {
+        html += '<div class="bg-gray-50 rounded-xl px-3 py-2 mb-2"><p class="text-[10px] text-gray-400">Tujuan / Penerima</p><p class="text-xs text-gray-500">Tidak tersedia di API publik SPX. Cek di WMS internal jika perlu.</p></div>';
+      }
+
+      if (list.length) {
+        html += '<div class="mt-3"><p class="font-semibold text-gray-800 text-sm mb-2">📋 Riwayat Perjalanan</p>';
+        html += '<div class="max-h-72 overflow-y-auto pr-1">';
+        list.forEach(function(item) {
+          let time = '-';
+          if (item.timestamp) {
+            const ts = Number(item.timestamp);
+            // SPX sering unix detik
+            time = new Date(ts < 1e12 ? ts * 1000 : ts).toLocaleString('id-ID');
+          } else if (item.time || item.date || item.mtime || item.event_time) {
+            time = String(item.time || item.date || item.mtime || item.event_time);
+          }
+          const msg = item.message || item.status || item.description || item.desc || item.content || '-';
+          html += '<div class="timeline-item mb-1">';
+          html += '<p class="text-[11px] text-gray-400">' + escapeHtml(time) + '</p>';
+          html += '<p class="text-xs text-gray-800 leading-snug">' + escapeHtml(String(msg)) + '</p>';
+          html += '</div>';
+        });
+        html += '</div></div>';
+      } else {
+        html += '<p class="text-xs text-gray-400 mt-2">Tidak ada detail riwayat perjalanan dari API.</p>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    async function trackResiUI() {
+      const resi = document.getElementById('cek-resi').value.trim();
+      const courier = document.getElementById('cek-courier').value;
+      const box = document.getElementById('cek-result');
+      const btn = document.getElementById('btn-track');
+      if (!resi) return alert('Masukkan nomor resi');
+      btn.disabled = true;
+      btn.textContent = 'Mengecek...';
+      box.classList.remove('hidden');
+      box.innerHTML = '<p class="text-sm text-gray-500">⏳ Mengambil data...</p>';
+      try {
+        const json = await trackResi(resi, courier);
+        box.innerHTML = formatTrackResult(json);
+        if (json.success) {
+          lastSpxStatus = extractStatusText(json);
+        }
+      } catch (e) {
+        box.innerHTML = '<p class="text-red-600 text-sm">Error: ' + escapeHtml(e.message) + '</p>';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Cek Sekarang';
+    }
+
+    function extractStatusText(json) {
+      try {
+        const d = json.data || {};
+        const detail = d.detail || {};
+        const summary = d.summary || {};
+        return detail.status || summary.status || d.status || 'OK';
+      } catch(e) { return 'OK'; }
+    }
+
+    async function cekResiDariForm() {
+      const resi = document.getElementById('resi').value.trim();
+      if (!resi) return alert('Isi nomor resi dulu');
+      const info = document.getElementById('spx-info');
+      info.classList.remove('hidden');
+      info.innerHTML = '⏳ Mengecek SPX via server...';
+      lastSpxStatus = '';
+      try {
+        const courier = resi.toUpperCase().startsWith('SPX') || resi.toUpperCase().startsWith('TO') ? 'spx' : 'auto';
+        const json = await trackResi(resi, courier);
+        if (json.success) {
+          lastSpxStatus = extractStatusText(json);
+          info.innerHTML = formatTrackResult(json);
+          info.dataset.status = lastSpxStatus;
+          if (!document.getElementById('keterangan').value) {
+            document.getElementById('keterangan').value = 'SPX: ' + lastSpxStatus;
+          }
+        } else {
+          info.innerHTML = formatTrackResult(json);
+          info.dataset.status = '';
+        }
+      } catch (e) {
+        info.innerHTML = '⚠️ ' + escapeHtml(e.message) + '<br><a href="https://spx.co.id/" target="_blank" class="underline text-blue-600">Buka SPX resmi</a>';
+      }
+    }
+
+    async function cekResiScanned() {
+      if (!lastScanned) return;
+      document.getElementById('cek-resi').value = lastScanned;
+      document.getElementById('cek-courier').value = 'spx';
+      showTab('cek');
+      trackResiUI();
+    }
+
+    // ===== FOTO =====
+    function handleFoto(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) { alert('Foto terlalu besar (max ~2MB)'); return; }
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxW = 640;
+          const scale = Math.min(1, maxW / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          document.getElementById('foto-data').value = dataUrl;
+          document.getElementById('foto-preview').src = dataUrl;
+          document.getElementById('foto-preview').classList.remove('hidden');
+          document.getElementById('btn-hapus-foto').classList.remove('hidden');
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    function hapusFoto() {
+      document.getElementById('foto-data').value = '';
+      document.getElementById('foto-preview').classList.add('hidden');
+      document.getElementById('btn-hapus-foto').classList.add('hidden');
+      document.getElementById('foto-input').value = '';
+    }
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.add('show');
+    }
+    function closeLightbox(e) {
+      if (e) e.stopPropagation();
+      document.getElementById('lightbox').classList.remove('show');
+      document.getElementById('lightbox-img').src = '';
+    }
+
+    // ===== HISTORY =====
+    function clearDateFilter() {
+      document.getElementById('filter-date-from').value = '';
+      document.getElementById('filter-date-to').value = '';
+      loadHistory();
+    }
+    function loadHistory() {
+      const data = getData();
+      const q = (document.getElementById('search').value || '').toLowerCase();
+      const status = document.getElementById('filter-status').value;
+      const dateFrom = document.getElementById('filter-date-from').value;
+      const dateTo = document.getElementById('filter-date-to').value;
+      let list = data.history || [];
+      if (status && status !== 'semua') list = list.filter(h => h.status === status);
+      if (q) list = list.filter(h => (h.resi||'').toLowerCase().includes(q) || (h.masalah||'').toLowerCase().includes(q) || (h.keterangan||'').toLowerCase().includes(q));
+      if (dateFrom) {
+        const from = new Date(dateFrom + 'T00:00:00');
+        list = list.filter(h => new Date(h.created_at) >= from);
+      }
+      if (dateTo) {
+        const to = new Date(dateTo + 'T23:59:59');
+        list = list.filter(h => new Date(h.created_at) <= to);
+      }
+      list = list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      const container = document.getElementById('history-list');
+      if (!list.length) {
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Belum ada data history</p>';
+        return;
+      }
+      container.innerHTML = list.map(item => `
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+          <div class="flex justify-between items-start gap-2 mb-1">
+            <div class="min-w-0">
+              <p class="font-semibold text-gray-800 text-sm break-all">${escapeHtml(item.resi)}</p>
+              <p class="text-xs text-gray-500">${escapeHtml(item.masalah)}</p>
+            </div>
+            <span class="badge-${item.status} px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap">${item.status}</span>
+          </div>
+          ${item.keterangan ? '<p class="text-xs text-gray-600 mb-1">' + escapeHtml(item.keterangan) + '</p>' : ''}
+          ${item.spx_status ? '<p class="text-[11px] text-blue-600 mb-1">SPX: ' + escapeHtml(item.spx_status) + '</p>' : ''}
+          ${item.foto ? '<img src="' + item.foto + '" class="photo-preview mt-2 mb-1" onclick="openLightbox(this.src)" />' : ''}
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
+            <div class="flex gap-3">
+              <button onclick='requirePin(() => editHistory(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-blue-600 text-xs font-medium">Edit</button>
+              <button onclick="requirePin(() => deleteHistory('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('form-history').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = getData();
+      const id = document.getElementById('edit-id').value;
+      const payload = {
+        resi: document.getElementById('resi').value.trim(),
+        masalah: document.getElementById('masalah').value,
+        status: document.getElementById('status').value,
+        keterangan: document.getElementById('keterangan').value.trim(),
+        foto: document.getElementById('foto-data').value || null,
+        spx_status: lastSpxStatus || document.getElementById('spx-info').dataset.status || null
+      };
+      if (id) {
+        const idx = data.history.findIndex(h => h.id === id);
+        if (idx !== -1) data.history[idx] = { ...data.history[idx], ...payload, updated_at: new Date().toISOString() };
+      } else {
+        data.history.push({ id: Date.now().toString(), ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      }
+      saveData(data);
+      resetForm();
+      loadHistory();
+      showTab('history');
+    });
+
+    function editHistory(item) {
+      document.getElementById('edit-id').value = item.id;
+      document.getElementById('resi').value = item.resi;
+      document.getElementById('masalah').value = item.masalah;
+      document.getElementById('status').value = item.status;
+      document.getElementById('keterangan').value = item.keterangan || '';
+      lastSpxStatus = item.spx_status || '';
+      if (item.foto) {
+        document.getElementById('foto-data').value = item.foto;
+        document.getElementById('foto-preview').src = item.foto;
+        document.getElementById('foto-preview').classList.remove('hidden');
+        document.getElementById('btn-hapus-foto').classList.remove('hidden');
+      } else hapusFoto();
+      document.getElementById('form-title').textContent = 'Edit History';
+      document.getElementById('btn-batal').classList.remove('hidden');
+      showTab('history');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function resetForm() {
+      document.getElementById('form-history').reset();
+      document.getElementById('edit-id').value = '';
+      document.getElementById('form-title').textContent = '+ Tambah History Baru';
+      document.getElementById('btn-batal').classList.add('hidden');
+      document.getElementById('spx-info').classList.add('hidden');
+      lastSpxStatus = '';
+      hapusFoto();
+    }
+    function deleteHistory(id) {
+      if (!confirm('Yakin hapus data ini?')) return;
+      const data = getData();
+      data.history = data.history.filter(h => h.id !== id);
+      saveData(data);
+      loadHistory();
+    }
+
+    // ===== SCAN =====
+    async function startScan() {
+      if (html5QrCode) return;
+      html5QrCode = new Html5Qrcode('reader');
+      try {
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            lastScanned = cleanResi(decodedText);
+            document.getElementById('scanned-resi').textContent = lastScanned;
+            document.getElementById('scan-result').classList.remove('hidden');
+            stopScan();
+          },
+          () => {}
+        );
+        document.getElementById('btn-start-scan').classList.add('hidden');
+        document.getElementById('btn-stop-scan').classList.remove('hidden');
+      } catch (err) {
+        alert('Gagal akses kamera. Pastikan izin kamera diberikan.\n' + err);
+        html5QrCode = null;
+      }
+    }
+    function stopScan() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => { html5QrCode.clear(); html5QrCode = null; }).catch(() => { html5QrCode = null; });
+      }
+      document.getElementById('btn-start-scan').classList.remove('hidden');
+      document.getElementById('btn-stop-scan').classList.add('hidden');
+    }
+    function gunakanHasilScan() {
+      if (!lastScanned) return;
+      document.getElementById('resi').value = lastScanned;
+      showTab('history');
+      cekResiDariForm();
+    }
+
+    // ===== STOK =====
+    function loadStok() {
+      const data = getData();
+      const list = data.stok || [];
+      const container = document.getElementById('stok-list');
+      if (!list.length) {
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Belum ada data stok</p>';
+        return;
+      }
+      container.innerHTML = list.map(item => `
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+          <div class="flex justify-between items-start">
+            <p class="font-semibold text-gray-800 text-sm">${escapeHtml(item.nama)}</p>
+            <p class="font-bold text-blue-700">${item.jumlah} <span class="text-xs font-normal text-gray-500">${escapeHtml(item.satuan)}</span></p>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">${escapeHtml(item.lokasi || '-')}</p>
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-[11px] text-gray-400">${formatDate(item.updated_at)}</span>
+            <div class="flex gap-3">
+              <button onclick='requirePin(() => editStok(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-blue-600 text-xs font-medium">Edit</button>
+              <button onclick="requirePin(() => deleteStok('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    document.getElementById('form-stok').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = getData();
+      const id = document.getElementById('stok-edit-id').value;
+      const payload = {
+        nama: document.getElementById('stok-nama').value.trim(),
+        jumlah: Number(document.getElementById('stok-jumlah').value) || 0,
+        satuan: document.getElementById('stok-satuan').value.trim() || 'pcs',
+        lokasi: document.getElementById('stok-lokasi').value.trim()
+      };
+      if (id) {
+        const idx = data.stok.findIndex(s => s.id === id);
+        if (idx !== -1) data.stok[idx] = { ...data.stok[idx], ...payload, updated_at: new Date().toISOString() };
+      } else {
+        data.stok.push({ id: Date.now().toString(), ...payload, updated_at: new Date().toISOString() });
+      }
+      saveData(data);
+      resetStokForm();
+      loadStok();
+    });
+    function editStok(item) {
+      document.getElementById('stok-edit-id').value = item.id;
+      document.getElementById('stok-nama').value = item.nama;
+      document.getElementById('stok-jumlah').value = item.jumlah;
+      document.getElementById('stok-satuan').value = item.satuan;
+      document.getElementById('stok-lokasi').value = item.lokasi || '';
+      document.getElementById('stok-form-title').textContent = 'Edit Barang Stok';
+      document.getElementById('stok-btn-batal').classList.remove('hidden');
+    }
+    function resetStokForm() {
+      document.getElementById('form-stok').reset();
+      document.getElementById('stok-edit-id').value = '';
+      document.getElementById('stok-jumlah').value = 0;
+      document.getElementById('stok-satuan').value = 'pcs';
+      document.getElementById('stok-form-title').textContent = '+ Tambah Barang Stok';
+      document.getElementById('stok-btn-batal').classList.add('hidden');
+    }
+    function deleteStok(id) {
+      if (!confirm('Hapus data stok ini?')) return;
+      const data = getData();
+      data.stok = data.stok.filter(s => s.id !== id);
+      saveData(data);
+      loadStok();
+    }
+
+
+    // ===== SURAT JALAN =====
+    function handleSjFoto(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) { alert('Foto terlalu besar (max ~2MB)'); return; }
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxW = 640;
+          const scale = Math.min(1, maxW / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          document.getElementById('sj-foto-data').value = dataUrl;
+          document.getElementById('sj-foto-preview').src = dataUrl;
+          document.getElementById('sj-foto-preview').classList.remove('hidden');
+          document.getElementById('sj-btn-hapus-foto').classList.remove('hidden');
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    function hapusSjFoto() {
+      document.getElementById('sj-foto-data').value = '';
+      document.getElementById('sj-foto-preview').classList.add('hidden');
+      document.getElementById('sj-btn-hapus-foto').classList.add('hidden');
+      document.getElementById('sj-foto-input').value = '';
+    }
+    function loadSj() {
+      const data = getData();
+      const q = (document.getElementById('sj-search').value || '').toLowerCase();
+      let list = data.sj || [];
+      if (q) list = list.filter(s => (s.lt || '').toLowerCase().includes(q) || (s.tujuan || '').toLowerCase().includes(q));
+      list = list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      const container = document.getElementById('sj-list');
+      if (!list.length) {
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Belum ada surat jalan</p>';
+        return;
+      }
+      container.innerHTML = list.map(item => `
+        <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+          <div class="flex justify-between items-start gap-2 mb-2">
+            <div>
+              <p class="font-semibold text-gray-800 text-sm font-mono">${escapeHtml(item.lt)}</p>
+              <p class="text-xs text-gray-500">${escapeHtml(item.tujuan || '-')}</p>
+            </div>
+            <span class="text-[11px] px-2 py-0.5 rounded-full ${item.high_value === 'Ya' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}">${item.high_value === 'Ya' ? 'High Value' : 'Normal'}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-xs mb-2">
+            <div class="bg-gray-50 rounded-lg p-2 text-center"><p class="text-gray-400">Berat</p><p class="font-semibold">${item.berat} kg</p></div>
+            <div class="bg-gray-50 rounded-lg p-2 text-center"><p class="text-gray-400">Jumlah</p><p class="font-semibold">${item.jumlah}</p></div>
+            <div class="bg-gray-50 rounded-lg p-2 text-center"><p class="text-gray-400">HV</p><p class="font-semibold">${escapeHtml(item.hv_nilai || item.high_value || '-')}</p></div>
+          </div>
+          ${item.foto ? '<img src="' + item.foto + '" class="photo-preview mb-2" onclick="openLightbox(this.src)" />' : ''}
+          <div class="flex justify-between items-center mt-1">
+            <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
+            <div class="flex gap-3">
+              <button onclick="printSj('${item.id}')" class="text-green-600 text-xs font-medium">Cetak</button>
+              <button onclick='requirePin(() => editSj(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-blue-600 text-xs font-medium">Edit</button>
+              <button onclick="requirePin(() => deleteSj('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    document.getElementById('form-sj').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = getData();
+      if (!data.sj) data.sj = [];
+      const id = document.getElementById('sj-edit-id').value;
+      const payload = {
+        lt: document.getElementById('sj-lt').value.trim().toUpperCase(),
+        berat: Number(document.getElementById('sj-berat').value) || 0,
+        jumlah: Number(document.getElementById('sj-jumlah').value) || 0,
+        high_value: document.getElementById('sj-hv').value,
+        hv_nilai: document.getElementById('sj-hv-nilai').value.trim(),
+        tujuan: document.getElementById('sj-tujuan').value.trim(),
+        foto: document.getElementById('sj-foto-data').value || null
+      };
+      if (id) {
+        const idx = data.sj.findIndex(s => s.id === id);
+        if (idx !== -1) data.sj[idx] = { ...data.sj[idx], ...payload, updated_at: new Date().toISOString() };
+      } else {
+        data.sj.push({ id: Date.now().toString(), ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      }
+      saveData(data);
+      resetSjForm();
+      loadSj();
+    });
+    function editSj(item) {
+      document.getElementById('sj-edit-id').value = item.id;
+      document.getElementById('sj-lt').value = item.lt || '';
+      document.getElementById('sj-berat').value = item.berat ?? '';
+      document.getElementById('sj-jumlah').value = item.jumlah ?? '';
+      document.getElementById('sj-hv').value = item.high_value || 'Tidak';
+      document.getElementById('sj-hv-nilai').value = item.hv_nilai || '';
+      document.getElementById('sj-tujuan').value = item.tujuan || '';
+      if (item.foto) {
+        document.getElementById('sj-foto-data').value = item.foto;
+        document.getElementById('sj-foto-preview').src = item.foto;
+        document.getElementById('sj-foto-preview').classList.remove('hidden');
+        document.getElementById('sj-btn-hapus-foto').classList.remove('hidden');
+      } else hapusSjFoto();
+      document.getElementById('sj-form-title').textContent = 'Edit Surat Jalan';
+      document.getElementById('sj-btn-batal').classList.remove('hidden');
+      showTab('sj');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function resetSjForm() {
+      document.getElementById('form-sj').reset();
+      document.getElementById('sj-edit-id').value = '';
+      document.getElementById('sj-form-title').textContent = '+ Buat Surat Jalan Pemberangkatan';
+      document.getElementById('sj-btn-batal').classList.add('hidden');
+      hapusSjFoto();
+    }
+    function deleteSj(id) {
+      if (!confirm('Hapus surat jalan ini?')) return;
+      const data = getData();
+      data.sj = (data.sj || []).filter(s => s.id !== id);
+      saveData(data);
+      loadSj();
+    }
+    function printSj(id) {
+      const data = getData();
+      const item = (data.sj || []).find(s => s.id === id);
+      if (!item) return;
+      const w = window.open('', '_blank');
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Surat Jalan ${escapeHtml(item.lt)}</title>
+        <style>
+          body{font-family:system-ui,sans-serif;padding:24px;color:#111}
+          h1{font-size:18px;margin:0 0 4px}
+          .sub{color:#666;font-size:12px;margin-bottom:16px}
+          table{width:100%;border-collapse:collapse;margin-top:12px}
+          td,th{border:1px solid #ccc;padding:8px;text-align:left;font-size:13px}
+          th{background:#f3f4f6}
+          .foto{max-width:280px;margin-top:12px;border-radius:8px}
+          @media print{.no-print{display:none}}
+        </style></head><body>
+        <h1>SURAT JALAN PEMBERANGKATAN</h1>
+        <div class="sub">DC Siborong Borong · Powered by Amos rcpdroid ~86</div>
+        <table>
+          <tr><th>Nomor LT (Line Trip)</th><td>${escapeHtml(item.lt)}</td></tr>
+          <tr><th>Berat Barang</th><td>${item.berat} kg</td></tr>
+          <tr><th>Jumlah Barang</th><td>${item.jumlah}</td></tr>
+          <tr><th>High Value</th><td>${escapeHtml(item.high_value)}${item.hv_nilai ? ' — ' + escapeHtml(item.hv_nilai) : ''}</td></tr>
+          <tr><th>Tujuan / Keterangan</th><td>${escapeHtml(item.tujuan || '-')}</td></tr>
+          <tr><th>Tanggal</th><td>${formatDate(item.created_at)}</td></tr>
+        </table>
+        ${item.foto ? '<img class="foto" src="' + item.foto + '" />' : ''}
+        <p class="no-print" style="margin-top:20px"><button onclick="window.print()">Cetak</button></p>
+        <script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>
+        </body></html>`;
+      w.document.write(html);
+      w.document.close();
+    }
+
+
+    // ===== LAPORAN =====
+    function loadLaporan() {
+      const data = getData();
+      const list = data.history || [];
+      document.getElementById('stat-total').textContent = list.length;
+      document.getElementById('stat-pending').textContent = list.filter(h => h.status === 'received').length;
+      document.getElementById('stat-proses').textContent = list.filter(h => h.status === 'packed' || h.status === 'transporting').length;
+      document.getElementById('stat-selesai').textContent = list.filter(h => h.status === 'transported').length;
+      const masalahCount = {};
+      list.forEach(h => { masalahCount[h.masalah] = (masalahCount[h.masalah] || 0) + 1; });
+      const sorted = Object.entries(masalahCount).sort((a,b) => b[1] - a[1]);
+      document.getElementById('stat-masalah').innerHTML = sorted.length
+        ? sorted.map(([m,c]) => '<div class="flex justify-between"><span>' + escapeHtml(m) + '</span><span class="font-semibold">' + c + '</span></div>').join('')
+        : '<p class="text-gray-400 text-sm">Belum ada data</p>';
+    }
+
+    function exportCSV() {
+      const data = getData();
+      const list = data.history || [];
+      if (!list.length) return alert('Tidak ada data');
+      const headers = ['ID','Resi','Masalah','Status','Keterangan','SPX Status','Tanggal'];
+      const rows = list.map(h => [h.id, h.resi, h.masalah, h.status, (h.keterangan||'').replace(/,/g,';'), (h.spx_status||'').replace(/,/g,';'), h.created_at]);
+      const csv = headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'history-dc-siborong-' + new Date().toISOString().slice(0,10) + '.csv';
+      link.click();
+    }
+    function clearAllData() {
+      if (!confirm('Yakin hapus SEMUA data?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      loadHistory(); loadStok(); loadSj(); loadLaporan();
+      alert('Data lokal dihapus.');
+    }
+
+    // ===== PIN =====
+    function getPin() { return localStorage.getItem(PIN_KEY) || DEFAULT_PIN; }
+    function setPin(pin) { localStorage.setItem(PIN_KEY, pin); }
+    function requirePin(actionFn, title) {
+      pendingPinAction = actionFn;
+      document.getElementById('pin-title').textContent = title || 'Masukkan PIN';
+      document.getElementById('pin-desc').textContent = 'Diperlukan untuk Edit / Hapus data';
+      document.getElementById('pin-input').value = '';
+      document.getElementById('pin-error').classList.add('hidden');
+      document.getElementById('pin-modal').classList.add('show');
+      setTimeout(() => document.getElementById('pin-input').focus(), 100);
+    }
+    function closePinModal() {
+      document.getElementById('pin-modal').classList.remove('show');
+      pendingPinAction = null;
+    }
+    function submitPin() {
+      const input = document.getElementById('pin-input').value.trim();
+      if (input === getPin()) {
+        const fn = pendingPinAction;
+        closePinModal();
+        if (fn) fn();
+      } else {
+        document.getElementById('pin-error').classList.remove('hidden');
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-input').focus();
+      }
+    }
+    document.getElementById('pin-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitPin(); });
+    function showUbahPin() {
+      const lama = prompt('Masukkan PIN lama:');
+      if (lama === null) return;
+      if (lama !== getPin()) { alert('PIN lama salah'); return; }
+      const baru = prompt('Masukkan PIN baru (4-8 karakter):');
+      if (baru === null || !baru.trim()) return;
+      if (baru.trim().length < 4 || baru.trim().length > 8) { alert('PIN harus 4-8 karakter'); return; }
+      setPin(baru.trim());
+      alert('PIN berhasil diubah');
+      closePinModal();
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '-';
+      return new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    }
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeLightbox(); closePinModal(); }
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>
