@@ -1,4 +1,4 @@
-name = "dc-siborong-borong"
+name = "dc-siborong-app"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
 
@@ -6,5 +6,11 @@ compatibility_date = "2024-09-23"
 directory = "./public"
 binding = "ASSETS"
 
-# Opsional: set secret BinderByte untuk kurir selain SPX
+[[d1_databases]]
+binding = "DB"
+database_name = "dc-siborong-db"
+database_id = "9b2f3e36-2bac-4fd8-a42e-3cbdde9610eb"
+
+# Opsional:
 # npx wrangler secret put BINDERBYTE_API_KEY
+# npx wrangler secret put AUTH_SECRET
