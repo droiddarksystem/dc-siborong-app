@@ -1,6 +1,6 @@
 # DC Siborong Borong (Cloudflare Workers)
 
-**History Paket Bermasalah + Scan QR + Cek Resi SPX/Multi-Kurir + Stok**
+**History Paket Bermasalah + Scan QR + Cek Resi SPX/Multi-Kurir + Stok + Asisten Chatbot (Suara)**
 
 Powered by **Amos rcpdroid ~86**
 
@@ -17,20 +17,42 @@ Powered by **Amos rcpdroid ~86**
 - 🔐 PIN untuk Edit / Hapus (default: `1234`)
 - 🖼️ Klik foto → tampil besar
 - 📱 PWA (bisa di-install di HP)
+- 💬 **Asisten Chatbot internal** (panel chat di dalam app)
+- 🔊 **Google Text-to-Speech** (suara natural bahasa Indonesia) + fallback Web Speech API
+- 🎤 Input suara (Speech-to-Text) di chatbot
+
+---
+
+## Asisten Chatbot
+
+Tombol 💬 di pojok kanan bawah membuka panel asisten.
+
+### Perintah contoh
+| Perintah | Fungsi |
+|----------|--------|
+| `cek SPX123...` / `track TO...` | Cek resi langsung |
+| `ringkas stok` / `stok kosong` | Ringkasan stok |
+| `laporan hari ini` / `ringkas history` | Ringkasan paket bermasalah |
+| `buka history` / `buka scan` / `buka stok` | Pindah tab |
+| `export csv` | Unduh CSV history |
+| `suara on` / `suara off` | Nyala/matikan suara otomatis |
+| `bantuan` | Daftar perintah |
+
+Setiap balasan bot punya tombol **🔊 Dengarkan**. Mic 🎤 untuk bicara (browser yang mendukung).
 
 ---
 
 ## Struktur
 
 ```
-dc-siborong-cf/
+dc-siborong-app/
 ├── public/
-│   ├── index.html
+│   ├── index.html          ← Frontend + Chatbot UI
 │   ├── manifest.json
 │   ├── sw.js
 │   └── icons/
 ├── src/
-│   └── index.js          ← API /api/track
+│   └── index.js            ← API /api/track + /api/tts + auth/sync
 ├── wrangler.toml
 ├── package.json
 └── README.md
@@ -41,35 +63,45 @@ dc-siborong-cf/
 ## Cara Deploy ke Cloudflare
 
 ### 1. Upload ke GitHub
-Buat repository baru, upload **semua isi folder ini**.
+Pastikan repository berisi semua file project ini.
 
-### 2. Hubungkan ke Cloudflare Pages / Workers
+### 2. Hubungkan ke Cloudflare Workers
 1. Buka [https://dash.cloudflare.com](https://dash.cloudflare.com)
-2. **Workers & Pages** → Create → Connect to Git
-3. Pilih repository ini
-4. Build settings:
-   - Framework: None
-   - Build command: *(kosong)* atau `npm install`
-   - Deploy command / output: ikuti template **Worker** dengan `wrangler.toml`
+2. **Workers & Pages** → Create → Connect to Git / atau pakai Wrangler
+3. Build settings mengikuti `wrangler.toml`
 
-Atau dari komputer (jika ada terminal):
+Dari komputer:
 
 ```bash
 npm install
 npx wrangler deploy
 ```
 
-### 3. (Opsional) Multi-kurir selain SPX
+### 3. Secret yang disarankan
+
 ```bash
+# Multi-kurir selain SPX
 npx wrangler secret put BINDERBYTE_API_KEY
+
+# Auth JWT (disarankan ganti)
+npx wrangler secret put AUTH_SECRET
+
+# Google Cloud Text-to-Speech (untuk suara natural)
+npx wrangler secret put GOOGLE_TTS_API_KEY
 ```
-Daftar key di: https://binderbyte.com
+
+#### Setup Google TTS API Key
+1. Buka [Google Cloud Console](https://console.cloud.google.com/)
+2. Buat project / pilih project
+3. Aktifkan **Cloud Text-to-Speech API**
+4. Buat **API Key** (Credentials → Create credentials → API key)
+5. (Opsional) Restrict key ke Text-to-Speech API saja
+6. Jalankan: `npx wrangler secret put GOOGLE_TTS_API_KEY`
+
+Tanpa key ini, chatbot tetap jalan dan memakai **Web Speech API** browser sebagai fallback.
 
 ### 4. Selesai
-Aplikasi live di:
-```
-https://dc-siborong-borong.USERNAME.workers.dev
-```
+Aplikasi live di domain Workers / custom domain Anda.
 
 ---
 
@@ -77,6 +109,8 @@ https://dc-siborong-borong.USERNAME.workers.dev
 `1234` — bisa diganti dari popup PIN → **Ubah PIN**
 
 ## Catatan
-- Data history/stok disimpan di **LocalStorage browser** perangkat
+- Data history/stok disimpan di **LocalStorage** browser perangkat
+- Bisa login untuk sync ke **Cloudflare D1**
 - Cek resi SPX diproses di **server Cloudflare** (tidak kena CORS)
 - Backup berkala dengan tombol Export CSV
+- Chatbot + suara tidak mengubah alur fitur lama
