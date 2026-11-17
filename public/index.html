@@ -300,6 +300,50 @@
       #pin-modal .sheet { border-radius: 16px; }
     }
 
+    
+    .resi-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+      max-width: 100%;
+      word-break: break-all;
+    }
+    .resi-chip.hit {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fcd34d;
+      font-weight: 700;
+      box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+    }
+    .resi-more-btn {
+      background: none;
+      border: none;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 4px;
+      cursor: pointer;
+    }
+    .resi-compact-line {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+    .resi-compact-line mark {
+      background: #fde68a;
+      color: #78350f;
+      padding: 0 2px;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+
     /* Chatbot */
     #chatbot-fab{position:fixed;right:16px;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));z-index:50;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;font-size:24px;box-shadow:0 8px 24px rgba(29,78,216,.35);display:flex;align-items:center;justify-content:center}
     #chatbot-fab:active{transform:scale(.94)}
@@ -425,7 +469,7 @@
       </div>
       <div class="flex flex-col gap-2 mb-3">
         <div class="flex flex-col sm:flex-row gap-2">
-          <input type="text" id="search" placeholder="Cari resi / masalah..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none" oninput="loadHistory()" />
+          <input type="text" id="search" placeholder="Cari resi / masalah (resi cocok akan ditandai)..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none" oninput="loadHistory()" />
           <select id="filter-status" onchange="loadHistory()" class="border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white">
             <option value="semua">Semua Status</option>
             <option value="received">Received</option>
@@ -1372,12 +1416,109 @@
         container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Belum ada data history</p>';
         return;
       }
-      container.innerHTML = list.map(item => `
+      
+    function getItemResiList(item) {
+      if (item.resi_list && item.resi_list.length) return item.resi_list.map(String);
+      if (item.resi) return [String(item.resi)];
+      return [];
+    }
+
+    function highlightText(text, q) {
+      const s = escapeHtml(text || '');
+      if (!q) return s;
+      const qq = escapeHtml(q);
+      try {
+        const re = new RegExp('(' + qq.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+        return s.replace(re, '<mark>$1</mark>');
+      } catch (e) {
+        return s;
+      }
+    }
+
+    function renderResiBlock(item, q) {
+      const list = getItemResiList(item);
+      const id = item.id;
+      if (!list.length) return '<p class="text-xs text-gray-400">Tanpa nomor resi</p>';
+
+      const qLower = (q || '').toLowerCase();
+      const hits = qLower ? list.filter(r => r.toLowerCase().includes(qLower)) : [];
+      const compactLimit = 3;
+
+      // Jika sedang search dan ada hit, prioritaskan tampilkan yang cocok dulu
+      let ordered = list.slice();
+      if (hits.length) {
+        const hitSet = new Set(hits.map(h => h.toLowerCase()));
+        ordered = list.filter(r => hitSet.has(r.toLowerCase())).concat(list.filter(r => !hitSet.has(r.toLowerCase())));
+      }
+
+      const needCollapse = ordered.length > compactLimit;
+      const head = ordered.slice(0, compactLimit);
+      const restCount = ordered.length - compactLimit;
+
+      const headLine = head.map(r => highlightText(r, q)).join(', ');
+      const moreLabel = restCount > 0 ? ' <span class="text-blue-600 font-semibold">+' + restCount + ' lainnya</span>' : '';
+
+      let hitBadge = '';
+      if (q && hits.length) {
+        hitBadge = '<span class="text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2 py-0.5">Cocok: ' + hits.length + ' resi</span>';
+      }
+
+      const chipsAll = ordered.map(r => {
+        const isHit = qLower && r.toLowerCase().includes(qLower);
+        return '<span class="resi-chip' + (isHit ? ' hit' : '') + '">' + highlightText(r, q) + (isHit ? ' ✓' : '') + '</span>';
+      }).join('');
+
+      return (
+        '<div class="resi-block" data-resi-id="' + escapeHtml(id) + '">' +
+          '<div class="flex flex-wrap items-center gap-1.5 mb-0.5">' +
+            '<p class="resi-compact-line resi-summary">' + headLine + moreLabel + '</p>' +
+            hitBadge +
+          '</div>' +
+          (needCollapse || hits.length
+            ? '<div class="hidden resi-expanded flex flex-wrap gap-1.5 mt-1.5 max-h-28 overflow-y-auto">' + chipsAll + '</div>' +
+              '<div class="flex gap-2 mt-1">' +
+                '<button type="button" class="resi-more-btn" onclick="toggleResiExpand(\'' + escapeHtml(id) + '\')">' + (needCollapse ? 'Lihat semua (' + ordered.length + ')' : 'Tampil chip') + '</button>' +
+                '<button type="button" class="resi-more-btn" onclick="copyResiList(\'' + escapeHtml(id) + '\')">Salin resi</button>' +
+              '</div>'
+            : '<button type="button" class="resi-more-btn mt-0.5" onclick="copyResiList(\'' + escapeHtml(id) + '\')">Salin resi</button>') +
+        '</div>'
+      );
+    }
+
+    window.toggleResiExpand = function(id) {
+      const block = document.querySelector('.resi-block[data-resi-id="' + id + '"]');
+      if (!block) return;
+      const exp = block.querySelector('.resi-expanded');
+      const btn = block.querySelector('.resi-more-btn');
+      if (!exp) return;
+      const open = exp.classList.toggle('hidden') === false;
+      if (btn) btn.textContent = open ? 'Sembunyikan' : ('Lihat semua');
+    };
+
+    window.copyResiList = function(id) {
+      const data = getData();
+      const item = (data.history || []).find(h => h.id === id);
+      if (!item) return;
+      const list = getItemResiList(item);
+      const text = list.join('\\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => alert('Berhasil salin ' + list.length + ' resi')).catch(() => prompt('Salin resi:', list.join(', ')));
+      } else {
+        prompt('Salin resi:', list.join(', '));
+      }
+    };
+
+
+      const qRaw = (document.getElementById('search').value || '').trim();
+      container.innerHTML = list.map(item => {
+        const resiList = getItemResiList(item);
+        const count = resiList.length;
+        return `
         <div class="card">
           <div class="flex justify-between items-start gap-2 mb-1">
-            <div class="min-w-0">
-              <p class="font-semibold text-gray-800 text-sm break-all">${escapeHtml((item.resi_list && item.resi_list.length) ? item.resi_list.join(', ') : item.resi)}</p>
-              <p class="text-xs text-gray-500">${escapeHtml(item.masalah)}${(item.resi_list && item.resi_list.length > 1) ? ' · <span class="text-blue-600">' + item.resi_list.length + ' resi</span>' : ''}</p>
+            <div class="min-w-0 flex-1">
+              <p class="text-xs text-gray-500 mb-0.5">${escapeHtml(item.masalah || '-')}${count > 1 ? ' · <span class="text-blue-600 font-semibold">' + count + ' resi</span>' : ''}</p>
+              ${renderResiBlock(item, qRaw)}
             </div>
             <span class="badge-${item.status} px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap">${item.status}</span>
           </div>
@@ -1392,7 +1533,8 @@
             </div>
           </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     document.getElementById('form-history').addEventListener('submit', (e) => {
