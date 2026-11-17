@@ -138,7 +138,7 @@ async function trackBinderByte(resi, courier, apiKey) {
     }
     return { success: false, courier, resi, message: (data && (data.message || data.msg)) || 'Resi tidak ditemukan' };
   } catch (err) {
-    return { success: false, courier, resi, message: 'Gagal BinderByte: ' + (err.message || 'error') };
+    return { success: false, message: 'Gagal BinderByte: ' + (err.message || 'error') };
   }
 }
 
@@ -231,12 +231,65 @@ async function handleSyncPut(request, env) {
   return json({ success: true, updated_at });
 }
 
+/** Google Cloud Text-to-Speech */
+async function handleTTS(request, env) {
+  if (request.method !== 'POST') return json({ success: false, message: 'Method not allowed' }, 405);
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ success: false, message: 'Body tidak valid' }, 400); }
+  const text = String(body.text || '').trim().slice(0, 1000);
+  if (!text) return json({ success: false, message: 'Teks kosong' }, 400);
+
+  const apiKey = env.GOOGLE_TTS_API_KEY;
+  if (!apiKey) {
+    return json({ success: false, message: 'GOOGLE_TTS_API_KEY belum diset', fallback: true }, 503);
+  }
+
+  const voiceName = body.voice || 'id-ID-Standard-A';
+  const lang = body.lang || 'id-ID';
+
+  try {
+    const payload = {
+      input: { text },
+      voice: {
+        languageCode: lang,
+        name: voiceName,
+      },
+      audioConfig: {
+        audioEncoding: 'MP3',
+        speakingRate: 1.0,
+        pitch: 0,
+      },
+    };
+    const url = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(apiKey);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return json({
+        success: false,
+        message: (data && data.error && data.error.message) || 'Google TTS error',
+        fallback: true,
+      }, 502);
+    }
+    if (!data.audioContent) {
+      return json({ success: false, message: 'Tidak ada audioContent', fallback: true }, 502);
+    }
+    return json({ success: true, audioContent: data.audioContent, voice: voiceName });
+  } catch (err) {
+    return json({ success: false, message: 'TTS gagal: ' + (err.message || 'error'), fallback: true }, 500);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, '') || '/';
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(false) });
     if (path === '/api/track') return handleTrack(request, env);
+    if (path === '/api/tts') return handleTTS(request, env);
     if (path === '/api/auth/register' && request.method === 'POST') return handleRegister(request, env);
     if (path === '/api/auth/login' && request.method === 'POST') return handleLogin(request, env);
     if (path === '/api/auth/me' && request.method === 'GET') return handleMe(request, env);
