@@ -447,7 +447,13 @@
           </div>
           <div id="spx-info" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800"></div>
           <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Foto Paket (opsional, bisa banyak)</label>
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <label class="block text-xs font-medium text-gray-500">Foto Paket (opsional, bisa banyak)</label>
+              <label class="flex items-center gap-1.5 text-[11px] text-gray-600 cursor-pointer select-none">
+                <input type="checkbox" id="ts-photo-toggle" class="rounded border-gray-300" checked onchange="setTimestampPhotoEnabled(this.checked)" />
+                ⏱ Stempel waktu
+              </label>
+            </div>
             <div class="flex flex-wrap items-center gap-2 mb-2">
               <label class="flex-1 min-w-[120px] border border-dashed border-gray-300 rounded-xl px-3 py-3 text-center text-sm text-gray-600 cursor-pointer bg-gray-50">
                 📷 Kamera
@@ -1290,6 +1296,41 @@
     let fotoListData = [];
     let sjFotoListData = [];
 
+    const TS_PHOTO_KEY = 'dc_siborong_ts_photo';
+    function isTimestampPhotoEnabled() {
+      const el = document.getElementById('ts-photo-toggle');
+      if (el) return !!el.checked;
+      return localStorage.getItem(TS_PHOTO_KEY) !== '0';
+    }
+    function setTimestampPhotoEnabled(on) {
+      localStorage.setItem(TS_PHOTO_KEY, on ? '1' : '0');
+      const el = document.getElementById('ts-photo-toggle');
+      if (el) el.checked = !!on;
+    }
+    function formatPhotoTimestamp(d) {
+      d = d || new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() +
+        ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+    function drawTimestampOnCanvas(canvas) {
+      if (!isTimestampPhotoEnabled()) return;
+      const ctx = canvas.getContext('2d');
+      const text = 'DC Siborong · ' + formatPhotoTimestamp();
+      const padX = 8, padY = 6;
+      const fontSize = Math.max(12, Math.round(canvas.width * 0.035));
+      ctx.font = 'bold ' + fontSize + 'px system-ui, sans-serif';
+      ctx.textBaseline = 'bottom';
+      const metrics = ctx.measureText(text);
+      const boxW = metrics.width + padX * 2;
+      const boxH = fontSize + padY * 2;
+      const x = 8;
+      const y = canvas.height - 8;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x, y - boxH, boxW, boxH);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(text, x + padX, y - padY);
+    }
     function compressImageFile(file) {
       return new Promise((resolve, reject) => {
         if (!file || !file.type.startsWith('image/')) return reject(new Error('bukan gambar'));
@@ -1299,12 +1340,14 @@
           const img = new Image();
           img.onload = function() {
             const canvas = document.createElement('canvas');
-            const maxW = 640;
+            const maxW = 1280;
             const scale = Math.min(1, maxW / img.width);
-            canvas.width = Math.max(1, img.width * scale);
-            canvas.height = Math.max(1, img.height * scale);
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', 0.7));
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            drawTimestampOnCanvas(canvas);
+            resolve(canvas.toDataURL('image/jpeg', 0.82));
           };
           img.onerror = () => reject(new Error('gagal baca gambar'));
           img.src = ev.target.result;
@@ -2031,6 +2074,7 @@
       }
     });
     renderResiList();
+    (function(){ const el=document.getElementById('ts-photo-toggle'); if(el) el.checked = localStorage.getItem(TS_PHOTO_KEY) !== '0'; })();
     initAuth().then(() => { loadHistory(); loadStok(); loadSj(); loadLaporan(); });
     // loadHistory();
   </script>
