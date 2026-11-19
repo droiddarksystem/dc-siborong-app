@@ -871,7 +871,7 @@
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'Gagal');
         setAuthSession(data.token, data.user);
-        await pullCloudData(true);
+        await pullCloudData(false);
         loadHistory(); loadStok(); loadSj(); loadLaporan();
       } catch (e) {
         err.textContent = e.message || 'Gagal autentikasi';
@@ -884,27 +884,90 @@
       if (!confirm('Keluar dari akun? Data lokal di HP ini tetap ada.')) return;
       clearAuthSession();
     }
+    function setSyncStatus(msg, isError) {
+      try {
+        let el = document.getElementById('sync-status-bar');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'sync-status-bar';
+          el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 8px + env(safe-area-inset-bottom));z-index:45;max-width:90%;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;box-shadow:0 4px 14px rgba(15,23,42,.15);pointer-events:none;transition:opacity .3s';
+          document.body.appendChild(el);
+        }
+        el.textContent = msg || '';
+        el.style.background = isError ? '#fef2f2' : '#ecfdf5';
+        el.style.color = isError ? '#b91c1c' : '#047857';
+        el.style.border = isError ? '1px solid #fecaca' : '1px solid #a7f3d0';
+        el.style.opacity = msg ? '1' : '0';
+        if (msg) {
+          clearTimeout(window.__syncStatusTimer);
+          window.__syncStatusTimer = setTimeout(function(){ el.style.opacity = '0'; }, isError ? 5000 : 2500);
+        }
+      } catch (e) {}
+    }
+
+    function itemTs(it) {
+      const t = Date.parse((it && (it.updated_at || it.created_at)) || 0);
+      return isNaN(t) ? 0 : t;
+    }
+
+    function mergeById(localArr, cloudArr) {
+      const map = {};
+      (cloudArr || []).forEach(function(it) {
+        if (it && it.id != null) map[String(it.id)] = it;
+      });
+      (localArr || []).forEach(function(it) {
+        if (!it || it.id == null) return;
+        const id = String(it.id);
+        const cur = map[id];
+        if (!cur || itemTs(it) >= itemTs(cur)) map[id] = it;
+      });
+      return Object.keys(map).map(function(k){ return map[k]; })
+        .sort(function(a,b){ return itemTs(b) - itemTs(a); });
+    }
+
     function scheduleCloudSync() {
       if (!getToken()) return;
       clearTimeout(syncTimer);
-      syncTimer = setTimeout(() => pushCloudData(), 800);
+      syncTimer = setTimeout(function(){ pushCloudData(); }, 400);
     }
+
     async function pushCloudData() {
       const token = getToken();
-      if (!token) return;
+      if (!token) return { ok: false, reason: 'no_token' };
       try {
         const data = getData();
+        const body = JSON.stringify({ history: data.history || [], stok: data.stok || [], sj: data.sj || [] });
+        if (body.length > 4500000) {
+          setSyncStatus('Sync gagal: data terlalu besar (kurangi foto)', true);
+          return { ok: false, reason: 'too_large' };
+        }
         const res = await fetch('/api/sync', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-          body: JSON.stringify({ history: data.history || [], stok: data.stok || [], sj: data.sj || [] })
+          body: body
         });
-        const j = await res.json();
-        if (!j.success && res.status === 401) clearAuthSession();
+        let j = {};
+        try { j = await res.json(); } catch (e) {}
+        if (res.status === 401) {
+          clearAuthSession();
+          setSyncStatus('Sesi login habis — login ulang', true);
+          return { ok: false, reason: 'auth' };
+        }
+        if (!res.ok || !j.success) {
+          setSyncStatus('Sync gagal: ' + ((j && j.message) || res.status), true);
+          return { ok: false, reason: 'server' };
+        }
+        setSyncStatus('Tersimpan ke cloud', false);
+        cloudEnabled = true;
+        return { ok: true };
       } catch (e) {
         console.warn('sync push gagal', e);
+        setSyncStatus('Sync gagal (offline?) — data aman di HP', true);
+        return { ok: false, reason: 'network' };
       }
     }
+
+    /** Merge aman: tidak menimpa lokal dengan cloud kosong/lama */
     async function pullCloudData(preferCloud) {
       const token = getToken();
       if (!token) return false;
@@ -919,15 +982,25 @@
         const local = getData();
         const cloudCount = (cloud.history||[]).length + (cloud.stok||[]).length + (cloud.sj||[]).length;
         const localCount = (local.history||[]).length + (local.stok||[]).length + (local.sj||[]).length;
-        if (preferCloud || cloudCount >= localCount) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            history: cloud.history || [],
-            stok: cloud.stok || [],
-            sj: cloud.sj || []
-          }));
-        } else if (localCount > 0) {
-          // lokal lebih banyak: push ke cloud
+
+        // Merge per-item by id + updated_at (lokal tidak dibuang)
+        const merged = {
+          history: mergeById(local.history, cloud.history),
+          stok: mergeById(local.stok, cloud.stok),
+          sj: mergeById(local.sj, cloud.sj)
+        };
+
+        // Jika preferCloud tapi cloud kosong dan lokal ada isi → tetap pakai merge (jaga lokal)
+        if (preferCloud && cloudCount === 0 && localCount > 0) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
           await pushCloudData();
+        } else {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          // Jika lokal punya item lebih baru / lebih banyak, push hasil merge ke cloud
+          const mergedCount = merged.history.length + merged.stok.length + merged.sj.length;
+          if (localCount > cloudCount || mergedCount > cloudCount) {
+            await pushCloudData();
+          }
         }
         cloudEnabled = true;
         return true;
@@ -947,7 +1020,7 @@
         const j = await res.json();
         if (j.success && j.user) {
           setAuthSession(token, j.user);
-          await pullCloudData(true);
+          await pullCloudData(false);
         } else {
           clearAuthSession();
         }
@@ -1340,14 +1413,15 @@
           const img = new Image();
           img.onload = function() {
             const canvas = document.createElement('canvas');
-            const maxW = 1280;
+            // Kompres ketat agar history/sync tidak membengkak; stempel tetap terbaca
+            const maxW = 720;
             const scale = Math.min(1, maxW / img.width);
             canvas.width = Math.max(1, Math.round(img.width * scale));
             canvas.height = Math.max(1, Math.round(img.height * scale));
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             drawTimestampOnCanvas(canvas);
-            resolve(canvas.toDataURL('image/jpeg', 0.82));
+            resolve(canvas.toDataURL('image/jpeg', 0.68));
           };
           img.onerror = () => reject(new Error('gagal baca gambar'));
           img.src = ev.target.result;
@@ -1611,6 +1685,13 @@
       resetForm();
       loadHistory();
       showTab('history');
+      // Push segera ke cloud (jangan hanya andalkan debounce)
+      if (getToken()) {
+        setSyncStatus('Menyimpan ke cloud...', false);
+        pushCloudData();
+      } else {
+        setSyncStatus('Tersimpan di HP (belum login cloud)', false);
+      }
     });
 
     function editHistory(item) {
