@@ -797,9 +797,100 @@
       } catch(e) {}
       return { history: [], stok: [], sj: [] };
     }
+    function estimateDataBytes(data) {
+      try { return JSON.stringify(data).length; } catch (e) { return 0; }
+    }
+
+    /** Hapus foto dari item lama agar muat di LocalStorage (~5MB) */
+    function stripPhotosForQuota(data) {
+      data = data || getData();
+      const hist = (data.history || []).slice().sort(function(a,b){
+        return new Date(a.updated_at || a.created_at || 0) - new Date(b.updated_at || b.created_at || 0);
+      });
+      const sj = (data.sj || []).slice().sort(function(a,b){
+        return new Date(a.updated_at || a.created_at || 0) - new Date(b.updated_at || b.created_at || 0);
+      });
+      let stripped = 0;
+      function clearFoto(item) {
+        let n = 0;
+        if (item.foto) { item.foto = null; n++; }
+        if (item.foto_list && item.foto_list.length) { n += item.foto_list.length; item.foto_list = []; }
+        return n;
+      }
+      // 1) hapus foto history tertua
+      for (let i = 0; i < hist.length; i++) {
+        stripped += clearFoto(hist[i]);
+        data.history = (data.history || []).map(function(h) {
+          const u = hist.find(function(x){ return x.id === h.id; });
+          return u || h;
+        });
+        // rewrite history from hist which we mutated
+        const map = {};
+        hist.forEach(function(h){ map[h.id] = h; });
+        data.history = (data.history || []).map(function(h){ return map[h.id] || h; });
+        if (estimateDataBytes(data) < 3500000) break;
+      }
+      // sync hist mutations into data.history
+      (function(){
+        const map = {};
+        hist.forEach(function(h){ map[String(h.id)] = h; });
+        data.history = (data.history || []).map(function(h){ return map[String(h.id)] || h; });
+      })();
+      if (estimateDataBytes(data) >= 3500000) {
+        for (let i = 0; i < sj.length; i++) {
+          stripped += clearFoto(sj[i]);
+          if (estimateDataBytes({ history: data.history, stok: data.stok, sj: sj }) < 3500000) break;
+        }
+        const map = {};
+        sj.forEach(function(s){ map[String(s.id)] = s; });
+        data.sj = (data.sj || []).map(function(s){ return map[String(s.id)] || s; });
+      }
+      return { data: data, stripped: stripped };
+    }
+
     function saveData(data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      scheduleCloudSync();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        scheduleCloudSync();
+        return true;
+      } catch (e) {
+        const name = (e && (e.name || e.code)) || '';
+        const isQuota = name === 'QuotaExceededError' || name === 22 || name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+          (String(e.message || e).toLowerCase().indexOf('quota') >= 0);
+        if (!isQuota) throw e;
+
+        // Coba kosongkan foto item lama lalu simpan ulang
+        const result = stripPhotosForQuota(data);
+        data = result.data;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          scheduleCloudSync();
+          if (typeof setSyncStatus === 'function') {
+            setSyncStatus('Penyimpanan penuh: foto lama dibersihkan agar data tersimpan', true);
+          }
+          return true;
+        } catch (e2) {
+          // Terakhir: simpan tanpa semua foto
+          const bare = {
+            history: (data.history || []).map(function(h) {
+              return Object.assign({}, h, { foto: null, foto_list: [] });
+            }),
+            stok: data.stok || [],
+            sj: (data.sj || []).map(function(s) {
+              return Object.assign({}, s, { foto: null, foto_list: [] });
+            })
+          };
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(bare));
+            scheduleCloudSync();
+            alert('Penyimpanan HP penuh. Data tersimpan tanpa foto. Hapus data lama / foto agar muat lagi.');
+            return true;
+          } catch (e3) {
+            alert('Penyimpanan HP penuh total. Tidak bisa simpan. Hapus sebagian History/SJ lama, atau clear data situs ini.');
+            throw e3;
+          }
+        }
+      }
     }
 
     function getToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
@@ -1365,7 +1456,7 @@
     }
 
     // ===== FOTO =====
-    const MAX_FOTO = 8;
+    const MAX_FOTO = 3;
     let fotoListData = [];
     let sjFotoListData = [];
 
@@ -1414,14 +1505,14 @@
           img.onload = function() {
             const canvas = document.createElement('canvas');
             // Kompres ketat agar history/sync tidak membengkak; stempel tetap terbaca
-            const maxW = 720;
+            const maxW = 480;
             const scale = Math.min(1, maxW / img.width);
             canvas.width = Math.max(1, Math.round(img.width * scale));
             canvas.height = Math.max(1, Math.round(img.height * scale));
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             drawTimestampOnCanvas(canvas);
-            resolve(canvas.toDataURL('image/jpeg', 0.68));
+            resolve(canvas.toDataURL('image/jpeg', 0.5));
           };
           img.onerror = () => reject(new Error('gagal baca gambar'));
           img.src = ev.target.result;
@@ -1958,28 +2049,58 @@
     }
     document.getElementById('form-sj').addEventListener('submit', (e) => {
       e.preventDefault();
-      const data = getData();
-      if (!data.sj) data.sj = [];
-      const id = document.getElementById('sj-edit-id').value;
-      const payload = {
-        lt: document.getElementById('sj-lt').value.trim().toUpperCase(),
-        berat: Number(document.getElementById('sj-berat').value) || 0,
-        jumlah: Number(document.getElementById('sj-jumlah').value) || 0,
-        high_value: document.getElementById('sj-hv').value,
-        hv_nilai: document.getElementById('sj-hv-nilai').value.trim(),
-        tujuan: document.getElementById('sj-tujuan').value.trim(),
-        foto: sjFotoListData[0] || null,
-        foto_list: sjFotoListData.slice()
-      };
-      if (id) {
-        const idx = data.sj.findIndex(s => s.id === id);
-        if (idx !== -1) data.sj[idx] = { ...data.sj[idx], ...payload, updated_at: new Date().toISOString() };
-      } else {
-        data.sj.push({ id: Date.now().toString(), ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      try {
+        const data = getData();
+        if (!data.sj) data.sj = [];
+        const id = document.getElementById('sj-edit-id').value;
+        const lt = (document.getElementById('sj-lt').value || '').trim().toUpperCase();
+        const berat = Number(document.getElementById('sj-berat').value);
+        const jumlah = Number(document.getElementById('sj-jumlah').value);
+        if (!lt || lt.length < 3) {
+          alert('Nomor LT wajib diisi');
+          document.getElementById('sj-lt').focus();
+          return;
+        }
+        if (isNaN(berat) || berat < 0) {
+          alert('Berat barang wajib diisi');
+          document.getElementById('sj-berat').focus();
+          return;
+        }
+        if (isNaN(jumlah) || jumlah < 0) {
+          alert('Jumlah barang wajib diisi');
+          document.getElementById('sj-jumlah').focus();
+          return;
+        }
+        const payload = {
+          lt: lt,
+          berat: berat || 0,
+          jumlah: jumlah || 0,
+          high_value: document.getElementById('sj-hv').value,
+          hv_nilai: document.getElementById('sj-hv-nilai').value.trim(),
+          tujuan: document.getElementById('sj-tujuan').value.trim(),
+          foto: sjFotoListData[0] || null,
+          foto_list: sjFotoListData.slice()
+        };
+        if (id) {
+          const idx = data.sj.findIndex(s => s.id === id);
+          if (idx !== -1) data.sj[idx] = { ...data.sj[idx], ...payload, updated_at: new Date().toISOString() };
+          else data.sj.push({ id: id, ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+        } else {
+          data.sj.push({ id: Date.now().toString(), ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+        }
+        saveData(data);
+        resetSjForm();
+        loadSj();
+        if (typeof getToken === 'function' && getToken()) {
+          if (typeof setSyncStatus === 'function') setSyncStatus('Menyimpan SJ ke cloud...', false);
+          pushCloudData();
+        } else if (typeof setSyncStatus === 'function') {
+          setSyncStatus('SJ tersimpan di HP (belum login cloud)', false);
+        }
+      } catch (err) {
+        console.error('simpan SJ gagal', err);
+        alert('Gagal simpan Surat Jalan: ' + (err.message || err));
       }
-      saveData(data);
-      resetSjForm();
-      loadSj();
     });
     function editSj(item) {
       document.getElementById('sj-edit-id').value = item.id;
@@ -2015,6 +2136,7 @@
       data.sj = (data.sj || []).filter(s => s.id !== id);
       saveData(data);
       loadSj();
+      if (typeof getToken === 'function' && getToken()) pushCloudData();
     }
     function printSj(id) {
       const data = getData();
