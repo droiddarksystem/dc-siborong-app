@@ -517,10 +517,11 @@
         <!-- PDA laser wedge -->
         <div class="mb-3 p-3 rounded-xl border border-violet-200 bg-violet-50">
           <p class="text-xs font-semibold text-violet-800 mb-1">🔫 Tembak PDA / Laser</p>
-          <p class="text-[10px] text-violet-600 mb-2">Fokus kotak ini, lalu tembak barcode. PDA harus mode keyboard (HID).</p>
-          <input type="text" id="pda-input" autocomplete="off" autocapitalize="characters"
-            placeholder="Ketuk di sini lalu tembak resi..."
+          <p class="text-[10px] text-violet-600 mb-2">Fokus kotak ini, lalu tembak barcode. Otomatis tanpa Enter. PDA: Simulate keystroke.</p>
+          <input type="text" id="pda-input" autocomplete="off" autocapitalize="characters" inputmode="none"
+            placeholder="Ketuk di sini lalu tembak resi (otomatis)..."
             class="w-full border border-violet-300 rounded-xl px-3 py-3 text-sm font-mono outline-none bg-white"
+            oninput="pdaInputAuto(event)"
             onkeydown="pdaInputKey(event)" />
         </div>
 
@@ -1907,15 +1908,44 @@
       if (typeof showScanToast === 'function') showScanToast(msg, ok ? 'ok' : 'dup');
     }
 
-    function pdaInputKey(e) {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
+    let pdaAutoTimer = null;
+    let pdaLastLen = 0;
+
+    function pdaCommit(raw) {
       const el = document.getElementById('pda-input');
-      const raw = el ? el.value : '';
+      const r = cleanResi(raw || (el ? el.value : ''));
       if (el) el.value = '';
-      const r = cleanResi(raw);
-      if (!r) return;
+      pdaLastLen = 0;
+      if (!r || r.length < 5) return;
       handleIncomingScan(r, 'pda');
+      // jaga fokus agar tembakan berikutnya langsung masuk
+      setTimeout(function() {
+        if (el) { try { el.focus(); } catch (e) {} }
+      }, 50);
+    }
+
+    function pdaInputAuto(e) {
+      const el = e.target || document.getElementById('pda-input');
+      if (!el) return;
+      const v = el.value || '';
+      // Scanner mengetik sangat cepat; commit setelah jeda singkat tanpa Enter
+      if (pdaAutoTimer) clearTimeout(pdaAutoTimer);
+      pdaLastLen = v.length;
+      // Resi umum SPX/TO sering 10–20+ karakter; commit saat jeda 80ms setelah ketikan berhenti
+      pdaAutoTimer = setTimeout(function() {
+        const cur = (el.value || '').trim();
+        if (cur.length >= 5) pdaCommit(cur);
+      }, 80);
+    }
+
+    function pdaInputKey(e) {
+      // Enter/Tab tetap didukung jika PDA mengirimnya, tapi tidak wajib
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        if (pdaAutoTimer) clearTimeout(pdaAutoTimer);
+        const el = document.getElementById('pda-input');
+        pdaCommit(el ? el.value : '');
+      }
     }
 
     function loadStackList() {
