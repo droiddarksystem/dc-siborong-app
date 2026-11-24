@@ -344,6 +344,13 @@
       font-weight: 700;
     }
 
+    
+    .stack-chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-family:ui-monospace,monospace; padding:4px 8px; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; color:#334155; }
+    .stack-chip.ok { background:#dcfce7; border-color:#86efac; color:#166534; font-weight:700; }
+    .stack-chip.miss { background:#f1f5f9; color:#64748b; }
+    .stack-chip.extra { background:#fef3c7; border-color:#fcd34d; color:#92400e; }
+    #pda-input:focus { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.2); }
+
     /* Chatbot */
     #chatbot-fab{position:fixed;right:16px;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));z-index:50;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;font-size:24px;box-shadow:0 8px 24px rgba(29,78,216,.35);display:flex;align-items:center;justify-content:center}
     #chatbot-fab:active{transform:scale(.94)}
@@ -503,8 +510,37 @@
         <p class="text-xs text-gray-500 mb-3">Mode tunggal atau batch (kamera tetap menyala)</p>
         <div class="flex gap-2 mb-3">
           <button type="button" id="mode-single" onclick="setScanMode('single')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white">1 Resi</button>
-          <button type="button" id="mode-batch" onclick="setScanMode('batch')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Batch Multi-Resi</button>
+          <button type="button" id="mode-batch" onclick="setScanMode('batch')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Batch</button>
+          <button type="button" id="mode-stack" onclick="setScanMode('stack')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Stak Receive</button>
         </div>
+
+        <!-- PDA laser wedge -->
+        <div class="mb-3 p-3 rounded-xl border border-violet-200 bg-violet-50">
+          <p class="text-xs font-semibold text-violet-800 mb-1">🔫 Tembak PDA / Laser</p>
+          <p class="text-[10px] text-violet-600 mb-2">Fokus kotak ini, lalu tembak barcode. PDA harus mode keyboard (HID).</p>
+          <input type="text" id="pda-input" autocomplete="off" autocapitalize="characters"
+            placeholder="Ketuk di sini lalu tembak resi..."
+            class="w-full border border-violet-300 rounded-xl px-3 py-3 text-sm font-mono outline-none bg-white"
+            onkeydown="pdaInputKey(event)" />
+        </div>
+
+        <!-- Stack receive list -->
+        <div id="stack-panel" class="hidden mb-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50">
+          <p class="text-xs font-semibold text-emerald-800 mb-1">📦 Stak Receive — daftar yang harus diterima</p>
+          <p class="text-[10px] text-emerald-700 mb-2">Tempel / ketik resi (satu baris satu resi atau pisah koma/spasi). Scan/tembak → otomatis cocok & notifikasi.</p>
+          <textarea id="stack-source" rows="4" placeholder="SPX111...&#10;SPX222...&#10;atau tempel banyak resi"
+            class="w-full border border-emerald-300 rounded-xl px-3 py-2 text-xs font-mono outline-none bg-white mb-2"></textarea>
+          <div class="flex gap-2 mb-2">
+            <button type="button" onclick="loadStackList()" class="flex-1 bg-emerald-700 text-white py-2 rounded-xl text-xs font-semibold">Muat Daftar</button>
+            <button type="button" onclick="clearStackList()" class="px-3 bg-white border border-emerald-300 text-emerald-800 py-2 rounded-xl text-xs font-semibold">Reset</button>
+          </div>
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="font-semibold text-emerald-900">Progress: <span id="stack-progress">0 / 0</span></span>
+            <span id="stack-status" class="text-emerald-700"></span>
+          </div>
+          <div id="stack-chips" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto"></div>
+        </div>
+
         <div id="reader" class="w-full mb-3"></div>
         <div class="flex gap-2 mb-3">
           <button id="btn-start-scan" onclick="startScan()" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Mulai Scan</button>
@@ -1149,10 +1185,14 @@
 
     // ===== MULTI RESI + ANTI DUPLIKAT =====
     let resiListData = [];
-    let scanMode = 'single'; // single | batch
+    let scanMode = 'single'; // single | batch | stack
     let lastBatchAccepted = '';
     let lastBatchTime = 0;
     const BATCH_COOLDOWN_MS = 1800; // hindari scan dobel sangat cepat pada label sama
+    // Stak receive: map resi -> { ok: boolean }
+    let stackReceiveMap = {}; // { RESI: true/false }
+    let stackReceiveOrder = [];
+    let stackExtra = []; // discan tapi tidak ada di daftar
 
     function showScanToast(msg, type) {
       const el = document.getElementById('scan-toast');
@@ -1167,22 +1207,27 @@
     }
 
     function setScanMode(mode) {
-      scanMode = mode === 'batch' ? 'batch' : 'single';
+      if (mode === 'batch') scanMode = 'batch';
+      else if (mode === 'stack') scanMode = 'stack';
+      else scanMode = 'single';
+      const styles = {
+        on: 'flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white',
+        off: 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700'
+      };
       const bSingle = document.getElementById('mode-single');
       const bBatch = document.getElementById('mode-batch');
-      if (bSingle && bBatch) {
-        bSingle.className = scanMode === 'single'
-          ? 'flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white'
-          : 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700';
-        bBatch.className = scanMode === 'batch'
-          ? 'flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white'
-          : 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700';
+      const bStack = document.getElementById('mode-stack');
+      if (bSingle) bSingle.className = scanMode === 'single' ? styles.on : styles.off;
+      if (bBatch) bBatch.className = scanMode === 'batch' ? styles.on : styles.off;
+      if (bStack) bStack.className = scanMode === 'stack' ? styles.on : styles.off;
+      const sp = document.getElementById('stack-panel');
+      if (sp) sp.classList.toggle('hidden', scanMode !== 'stack');
+      if (scanMode === 'stack') {
+        setTimeout(function() {
+          const pda = document.getElementById('pda-input');
+          if (pda) pda.focus();
+        }, 200);
       }
-      const preview = document.getElementById('batch-resi-preview');
-      const countEl = document.getElementById('batch-count');
-      if (preview) preview.classList.toggle('hidden', scanMode !== 'batch');
-      if (countEl) countEl.classList.toggle('hidden', scanMode !== 'batch');
-      syncBatchPreview();
     }
 
     function collectAllSavedResi(excludeId) {
@@ -1841,9 +1886,141 @@
     }
 
     // ===== SCAN =====
+    
+    function notifyScanFeedback(ok, msg) {
+      try {
+        if (navigator.vibrate) navigator.vibrate(ok ? [40, 40, 40] : [120, 60, 120]);
+      } catch (e) {}
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+          const ctx = new Ctx();
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = ok ? 880 : 220;
+          g.gain.value = 0.05;
+          o.start();
+          setTimeout(function(){ o.stop(); ctx.close(); }, ok ? 120 : 250);
+        }
+      } catch (e) {}
+      if (typeof showScanToast === 'function') showScanToast(msg, ok ? 'ok' : 'dup');
+    }
+
+    function pdaInputKey(e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const el = document.getElementById('pda-input');
+      const raw = el ? el.value : '';
+      if (el) el.value = '';
+      const r = cleanResi(raw);
+      if (!r) return;
+      handleIncomingScan(r, 'pda');
+    }
+
+    function loadStackList() {
+      const ta = document.getElementById('stack-source');
+      const raw = (ta && ta.value) || '';
+      const parts = raw.split(/[\s,;|]+/).map(function(x){ return cleanResi(x); }).filter(function(x){ return x && x.length >= 5; });
+      const uniq = [];
+      const seen = {};
+      parts.forEach(function(p){
+        if (!seen[p]) { seen[p] = true; uniq.push(p); }
+      });
+      stackReceiveMap = {};
+      stackReceiveOrder = uniq.slice();
+      stackExtra = [];
+      uniq.forEach(function(r){ stackReceiveMap[r] = false; });
+      renderStackChips();
+      const st = document.getElementById('stack-status');
+      if (st) st.textContent = uniq.length ? 'Siap tembak / scan' : 'Daftar kosong';
+      notifyScanFeedback(!!uniq.length, uniq.length ? ('Daftar ' + uniq.length + ' resi siap') : 'Tidak ada resi valid');
+      const pda = document.getElementById('pda-input');
+      if (pda) pda.focus();
+    }
+
+    function clearStackList() {
+      stackReceiveMap = {};
+      stackReceiveOrder = [];
+      stackExtra = [];
+      const ta = document.getElementById('stack-source');
+      if (ta) ta.value = '';
+      renderStackChips();
+      const st = document.getElementById('stack-status');
+      if (st) st.textContent = '';
+    }
+
+    function renderStackChips() {
+      const box = document.getElementById('stack-chips');
+      const prog = document.getElementById('stack-progress');
+      if (!box) return;
+      const total = stackReceiveOrder.length;
+      let ok = 0;
+      stackReceiveOrder.forEach(function(r){ if (stackReceiveMap[r]) ok++; });
+      if (prog) prog.textContent = ok + ' / ' + total;
+      let htmlChips = stackReceiveOrder.map(function(r){
+        const done = !!stackReceiveMap[r];
+        return '<span class="stack-chip ' + (done ? 'ok' : 'miss') + '">' + (done ? '✓ ' : '') + escapeHtml(r) + '</span>';
+      }).join('');
+      if (stackExtra.length) {
+        htmlChips += stackExtra.map(function(r){
+          return '<span class="stack-chip extra">? ' + escapeHtml(r) + '</span>';
+        }).join('');
+      }
+      box.innerHTML = htmlChips || '<span class="text-[11px] text-gray-400">Belum ada daftar</span>';
+    }
+
+    function handleStackScan(r) {
+      if (!stackReceiveOrder.length) {
+        notifyScanFeedback(false, 'Muat daftar resi dulu');
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(stackReceiveMap, r)) {
+        if (stackReceiveMap[r]) {
+          notifyScanFeedback(false, 'Sudah diterima: ' + r);
+        } else {
+          stackReceiveMap[r] = true;
+          renderStackChips();
+          const ok = stackReceiveOrder.filter(function(x){ return stackReceiveMap[x]; }).length;
+          const total = stackReceiveOrder.length;
+          notifyScanFeedback(true, '✓ Cocok ' + ok + '/' + total + ' · ' + r);
+          const st = document.getElementById('stack-status');
+          if (st) st.textContent = ok === total ? 'Semua diterima!' : ('Kurang ' + (total - ok));
+          if (ok === total) {
+            try { if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 120]); } catch (e) {}
+          }
+        }
+      } else {
+        if (stackExtra.indexOf(r) === -1) stackExtra.push(r);
+        renderStackChips();
+        notifyScanFeedback(false, 'Tidak ada di daftar: ' + r);
+      }
+      lastScanned = r;
+      const sr = document.getElementById('scanned-resi');
+      const box = document.getElementById('scan-result');
+      if (sr) sr.textContent = r;
+      if (box) box.classList.remove('hidden');
+    }
+
+    function handleIncomingScan(r, source) {
+      r = cleanResi(r);
+      if (!r) return;
+      if (scanMode === 'stack') {
+        handleStackScan(r);
+        return;
+      }
+      // reuse camera success path
+      onScanSuccess(r);
+    }
+
+
     function onScanSuccess(decodedText) {
       const r = cleanResi(decodedText);
       if (!r) return;
+      if (scanMode === 'stack') {
+        handleStackScan(r);
+        return;
+      }
       lastScanned = r;
       document.getElementById('scanned-resi').textContent = r;
       document.getElementById('scan-result').classList.remove('hidden');
