@@ -475,7 +475,7 @@
       </div>
       <div class="flex flex-col gap-2 mb-3">
         <div class="flex flex-col sm:flex-row gap-2">
-          <input type="text" id="search" placeholder="Cari resi / masalah (resi cocok akan ditandai)..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none" oninput="loadHistory()" />
+          <input type="text" id="search" placeholder="Cari resi / 4 huruf belakang / masalah..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none" oninput="loadHistory()" />
           <select id="filter-status" onchange="loadHistory()" class="border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white">
             <option value="semua">Semua Status</option>
             <option value="received">Received</option>
@@ -1607,8 +1607,19 @@
       let list = data.history || [];
       if (status && status !== 'semua') list = list.filter(h => h.status === status);
       if (q) list = list.filter(h => {
-        const resis = (h.resi_list && h.resi_list.length) ? h.resi_list.join(' ') : (h.resi || '');
-        return resis.toLowerCase().includes(q) || (h.masalah||'').toLowerCase().includes(q) || (h.keterangan||'').toLowerCase().includes(q);
+        const arr = (h.resi_list && h.resi_list.length) ? h.resi_list.map(String) : (h.resi ? [String(h.resi)] : []);
+        const resis = arr.join(' ');
+        const qClean = q.replace(/\s+/g, '');
+        // Cocok penuh / sebagian, atau 4 huruf terakhir resi
+        const matchResi = arr.some(function(r) {
+          const rr = r.toLowerCase();
+          if (rr.includes(q) || rr.includes(qClean)) return true;
+          const tail = rr.slice(-4);
+          if (qClean.length >= 3 && (tail.includes(qClean) || qClean.includes(tail) || rr.endsWith(qClean))) return true;
+          if (qClean.length === 4 && tail === qClean) return true;
+          return false;
+        });
+        return matchResi || (h.masalah||'').toLowerCase().includes(q) || (h.keterangan||'').toLowerCase().includes(q);
       });
       if (dateFrom) {
         const from = new Date(dateFrom + 'T00:00:00');
@@ -1649,7 +1660,10 @@
       if (!list.length) return '<p class="text-xs text-gray-400">Tanpa nomor resi</p>';
 
       const qLower = (q || '').toLowerCase();
-      const hits = qLower ? list.filter(r => r.toLowerCase().includes(qLower)) : [];
+      const hits = qLower ? list.filter(r => {
+        const rl = r.toLowerCase();
+        return rl.includes(qLower) || rl.slice(-4) === qLower || (qLower.length >= 3 && rl.endsWith(qLower));
+      }) : [];
       const compactLimit = 3;
 
       // Jika sedang search dan ada hit, prioritaskan tampilkan yang cocok dulu
@@ -1672,7 +1686,8 @@
       }
 
       const chipsAll = ordered.map(r => {
-        const isHit = qLower && r.toLowerCase().includes(qLower);
+        const rl = r.toLowerCase();
+        const isHit = qLower && (rl.includes(qLower) || rl.slice(-4) === qLower || (qLower.length >= 3 && rl.endsWith(qLower)));
         return '<span class="resi-chip' + (isHit ? ' hit' : '') + '">' + highlightText(r, q) + (isHit ? ' ✓' : '') + '</span>';
       }).join('');
 
