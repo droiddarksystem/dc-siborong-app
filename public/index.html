@@ -1715,6 +1715,108 @@
       document.getElementById('filter-date-to').value = '';
       loadHistory();
     }
+    
+    function buildHistoryShareText(item) {
+      const resis = (item.resi_list && item.resi_list.length) ? item.resi_list : (item.resi ? [item.resi] : []);
+      const lines = [
+        '*DC Siborong — Laporan Masalah*',
+        '',
+        'Jenis: ' + (item.masalah || '-'),
+        'Status: ' + (item.status || '-'),
+        'Jumlah resi: ' + resis.length,
+        'Resi:',
+        resis.map(function(r){ return '- ' + r; }).join('\n') || '-',
+        item.keterangan ? ('Keterangan: ' + item.keterangan) : '',
+        item.spx_status ? ('SPX: ' + item.spx_status) : '',
+        'Waktu: ' + (item.created_at ? formatDate(item.created_at) : '-'),
+        '',
+        '_Dikirim dari app DC Siborong Borong_'
+      ];
+      return lines.filter(function(x){ return x !== ''; }).join('\n');
+    }
+
+    function buildSjShareText(item) {
+      const lines = [
+        '*DC Siborong — Surat Jalan*',
+        '',
+        'No. LT: ' + (item.lt || '-'),
+        'Berat: ' + (item.berat != null ? item.berat + ' kg' : '-'),
+        'Jumlah: ' + (item.jumlah != null ? item.jumlah : '-'),
+        'High Value: ' + (item.high_value || 'Tidak') + (item.hv_nilai ? (' (' + item.hv_nilai + ')') : ''),
+        'Tujuan: ' + (item.tujuan || '-'),
+        'Waktu: ' + (item.created_at ? formatDate(item.created_at) : '-'),
+        '',
+        '_Dikirim dari app DC Siborong Borong_'
+      ];
+      return lines.join('\n');
+    }
+
+    async function shareText(text, title) {
+      title = title || 'DC Siborong';
+      // 1) Web Share API (WhatsApp, Email, dll di HP)
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: title, text: text });
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;
+        }
+      }
+      // 2) Sheet pilihan
+      openShareSheet(text, title);
+    }
+
+    function openShareSheet(text, title) {
+      let sheet = document.getElementById('share-sheet');
+      if (!sheet) {
+        sheet = document.createElement('div');
+        sheet.id = 'share-sheet';
+        sheet.innerHTML = `
+          <div id="share-sheet-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:120;display:flex;align-items:flex-end;justify-content:center;">
+            <div style="width:100%;max-width:480px;background:#fff;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));">
+              <p style="margin:0 0 12px;font-weight:700;font-size:14px;color:#9a3412;">Bagikan</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <button type="button" id="share-wa" style="padding:12px;border:none;border-radius:12px;background:#dcfce7;color:#166534;font-weight:700;font-size:13px;">WhatsApp</button>
+                <button type="button" id="share-email" style="padding:12px;border:none;border-radius:12px;background:#ffedd5;color:#c2410c;font-weight:700;font-size:13px;">Email</button>
+                <button type="button" id="share-copy" style="padding:12px;border:none;border-radius:12px;background:#f1f5f9;color:#334155;font-weight:700;font-size:13px;">Salin Teks</button>
+                <button type="button" id="share-close" style="padding:12px;border:none;border-radius:12px;background:#fee2e2;color:#b91c1c;font-weight:700;font-size:13px;">Tutup</button>
+              </div>
+            </div>
+          </div>`;
+        document.body.appendChild(sheet);
+      }
+      sheet.style.display = 'block';
+      const wa = 'https://wa.me/?text=' + encodeURIComponent(text);
+      const mail = 'mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(text);
+      document.getElementById('share-wa').onclick = function(){ window.open(wa, '_blank'); sheet.style.display = 'none'; };
+      document.getElementById('share-email').onclick = function(){ window.location.href = mail; sheet.style.display = 'none'; };
+      document.getElementById('share-copy').onclick = async function(){
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+          else prompt('Salin teks:', text);
+          alert('Teks disalin');
+        } catch (e) { prompt('Salin teks:', text); }
+        sheet.style.display = 'none';
+      };
+      document.getElementById('share-close').onclick = function(){ sheet.style.display = 'none'; };
+      document.getElementById('share-sheet-bg').onclick = function(ev){ if (ev.target.id === 'share-sheet-bg') sheet.style.display = 'none'; };
+    }
+
+    function shareHistory(id) {
+      const data = getData();
+      const item = (data.history || []).find(function(h){ return h.id === id; });
+      if (!item) { alert('Data tidak ditemukan'); return; }
+      shareText(buildHistoryShareText(item), 'Laporan Masalah — ' + (item.masalah || 'DC Siborong'));
+    }
+
+    function shareSj(id) {
+      const data = getData();
+      const item = (data.sj || []).find(function(s){ return s.id === id; });
+      if (!item) { alert('Data tidak ditemukan'); return; }
+      shareText(buildSjShareText(item), 'Surat Jalan — ' + (item.lt || 'LT'));
+    }
+
+
     function loadHistory() {
       const data = getData();
       const q = (document.getElementById('search').value || '').toLowerCase();
@@ -1868,6 +1970,7 @@
           <div class="flex justify-between items-center mt-2">
             <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
             <div class="flex gap-3">
+              <button onclick="shareHistory('${item.id}')" class="text-emerald-700 text-xs font-medium">Bagikan</button>
               <button onclick='requirePin(() => editHistory(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
               <button onclick="requirePin(() => deleteHistory('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
             </div>
@@ -2447,6 +2550,7 @@
           <div class="flex justify-between items-center mt-1">
             <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
             <div class="flex gap-3">
+              <button onclick="shareSj('${item.id}')" class="text-emerald-700 text-xs font-medium">Bagikan</button>
               <button onclick="printSj('${item.id}')" class="text-green-600 text-xs font-medium">Cetak</button>
               <button onclick='requirePin(() => editSj(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
               <button onclick="requirePin(() => deleteSj('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
