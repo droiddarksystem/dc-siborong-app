@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
-  <meta name="theme-color" content="#1e40af" />
+  <meta name="theme-color" content="#ea580c" />
   <meta name="description" content="DC Siborong Borong - History Paket, Scan QR, Cek Resi SPX & Stok" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,15 +17,20 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>
     :root {
-      --blue: #1d4ed8;
-      --blue-dark: #1e3a8a;
-      --bg: #f1f5f9;
+      --blue: #ea580c;
+      --blue-dark: #c2410c;
+      --orange: #ea580c;
+      --orange-dark: #9a3412;
+      --orange-deep: #7c2d12;
+      --orange-soft: #fff7ed;
+      --bg: #fff7ed;
       --card: #ffffff;
-      --text: #0f172a;
-      --muted: #64748b;
-      --line: #e2e8f0;
-      --radius: 14px;
+      --text: #1c1917;
+      --muted: #78716c;
+      --line: #fed7aa;
+      --radius: 16px;
       --nav-h: 58px;
+      --shadow: 0 4px 20px rgba(234, 88, 12, 0.08);
     }
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
@@ -33,7 +38,8 @@
       padding: 0;
       max-width: 100vw;
       overflow-x: hidden;
-      background: var(--bg);
+      background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 40%, #fef3c7 100%);
+      background-attachment: fixed;
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       -webkit-tap-highlight-color: transparent;
@@ -57,14 +63,14 @@
     }
     input:focus, select:focus, textarea:focus {
       border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+      box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.2);
     }
     button { cursor: pointer; }
     img { max-width: 100%; height: auto; }
 
-    .badge-received     { background: #dbeafe; color: #1e40af; }
+    .badge-received     { background: #fed7aa; color: #c2410c; }
     .badge-packed       { background: #fef3c7; color: #92400e; }
-    .badge-transporting { background: #e0e7ff; color: #3730a3; }
+    .badge-transporting { background: #e0e7ff; color: #9a3412; }
     .badge-transported  { background: #d1fae5; color: #065f46; }
     .badge-arrival      { background: #fce7f3; color: #9d174d; }
 
@@ -75,10 +81,41 @@
       top: 0;
       z-index: 30;
       padding-top: max(8px, env(safe-area-inset-top));
-      background: linear-gradient(180deg, var(--blue-dark) 0%, var(--blue) 100%);
+      background: linear-gradient(135deg, #9a3412 0%, #ea580c 45%, #f97316 100%);
       color: #fff;
-      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+      box-shadow: 0 8px 28px rgba(234, 88, 12, 0.28);
     }
+    .app-header .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .app-header .logo-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .app-header .logo-box svg { width: 26px; height: 26px; opacity: 0.92; }
+    .watermark-box {
+      position: fixed;
+      right: -20px;
+      bottom: 70px;
+      width: 160px;
+      height: 160px;
+      opacity: 0.06;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .watermark-box svg { width: 100%; height: 100%; }
     .app-header .wrap {
       max-width: 480px;
       margin: 0 auto;
@@ -97,7 +134,7 @@
     .app-header .sub {
       margin: 2px 0 0;
       font-size: 11px;
-      color: #bfdbfe;
+      color: #ffedd5;
     }
     .app-header .user-box {
       text-align: right;
@@ -119,11 +156,13 @@
 
     .card {
       background: var(--card);
-      border: 1px solid var(--line);
+      border: 1px solid rgba(254, 215, 170, 0.7);
       border-radius: var(--radius);
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      box-shadow: var(--shadow);
       padding: 14px;
       margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
     }
     .card h2, .section-title {
       margin: 0 0 10px;
@@ -144,13 +183,14 @@
       gap: 10px;
     }
     .btn-primary {
-      background: var(--blue);
+      background: linear-gradient(135deg, #ea580c, #f97316);
       color: #fff;
       border: none;
       border-radius: 12px;
       min-height: 44px;
       padding: 10px 14px;
       font-weight: 600;
+      box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3);
     }
     .btn-ghost {
       background: #f1f5f9;
@@ -207,8 +247,8 @@
       line-height: 1;
     }
     .bottom-nav button.active {
-      color: var(--blue);
-      background: #eff6ff;
+      color: #c2410c;
+      background: linear-gradient(180deg, #ffedd5, #fed7aa);
     }
 
     #reader { border-radius: 12px; overflow: hidden; background: #0f172a; }
@@ -272,7 +312,7 @@
       padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
     }
     .timeline-item {
-      border-left: 2px solid #bfdbfe;
+      border-left: 2px solid #fdba74;
       padding-left: 12px;
       margin-left: 6px;
       padding-bottom: 10px;
@@ -287,13 +327,13 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      background: #eff6ff;
-      color: #1e40af;
+      background: #ffedd5;
+      color: #c2410c;
       font-size: 11px;
       font-family: ui-monospace, monospace;
       padding: 4px 8px;
       border-radius: 8px;
-      border: 1px solid #dbeafe;
+      border: 1px solid #fed7aa;
     }
 
     @media (min-width: 480px) {
@@ -325,7 +365,7 @@
     .resi-more-btn {
       background: none;
       border: none;
-      color: #1d4ed8;
+      color: #c2410c;
       font-size: 11px;
       font-weight: 600;
       padding: 2px 4px;
@@ -353,26 +393,26 @@
     #pda-input:focus { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.2); }
 
     /* Chatbot */
-    #chatbot-fab{position:fixed;right:16px;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));z-index:50;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;font-size:24px;box-shadow:0 8px 24px rgba(29,78,216,.35);display:flex;align-items:center;justify-content:center}
+    #chatbot-fab{position:fixed;right:16px;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));z-index:50;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#c2410c,#f97316);color:#fff;font-size:24px;box-shadow:0 8px 24px rgba(234,88,12,.4);display:flex;align-items:center;justify-content:center}
     #chatbot-fab:active{transform:scale(.94)}
     #chatbot-panel{display:none;position:fixed;right:12px;bottom:calc(var(--nav-h) + 80px + env(safe-area-inset-bottom));z-index:55;width:min(380px,calc(100vw - 24px));height:min(520px,calc(100vh - 160px));background:#fff;border-radius:18px;box-shadow:0 16px 48px rgba(15,23,42,.22);border:1px solid #e2e8f0;flex-direction:column;overflow:hidden}
     #chatbot-panel.open{display:flex}
-    #chatbot-header{background:linear-gradient(135deg,#1e3a8a,#1d4ed8);color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    #chatbot-header{background:linear-gradient(135deg,#9a3412,#ea580c);color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
     #chatbot-header h3{margin:0;font-size:14px;font-weight:700}
-    #chatbot-header .sub{margin:2px 0 0;font-size:10px;color:#bfdbfe}
+    #chatbot-header .sub{margin:2px 0 0;font-size:10px;color:#fdba74}
     #chatbot-header .actions{display:flex;gap:6px}
     #chatbot-header button{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:14px}
     #chatbot-messages{flex:1;overflow-y:auto;padding:12px;background:#f8fafc;display:flex;flex-direction:column;gap:10px}
     .chat-msg{max-width:88%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.45;word-break:break-word}
     .chat-msg.bot{align-self:flex-start;background:#fff;border:1px solid #e2e8f0;border-bottom-left-radius:4px}
-    .chat-msg.user{align-self:flex-end;background:#1d4ed8;color:#fff;border-bottom-right-radius:4px}
+    .chat-msg.user{align-self:flex-end;background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;border-bottom-right-radius:4px}
     .chat-msg .msg-meta{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10px;opacity:.7}
-    .chat-msg .speak-btn{background:#eff6ff;border:1px solid #dbeafe;color:#1d4ed8;border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer}
+    .chat-msg .speak-btn{background:#ffedd5;border:1px solid #fed7aa;color:#c2410c;border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer}
     .chat-quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;background:#f8fafc}
-    .chat-quick button{background:#fff;border:1px solid #e2e8f0;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:600;color:#1e40af}
+    .chat-quick button{background:#fff;border:1px solid #fed7aa;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:600;color:#c2410c}
     #chatbot-input-area{border-top:1px solid #e2e8f0;padding:10px;background:#fff;display:flex;gap:8px;align-items:flex-end}
     #chatbot-input{flex:1;min-height:42px;max-height:90px;resize:none;border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;font-size:14px!important}
-    #chatbot-send,#chatbot-mic{width:42px;height:42px;border:none;border-radius:12px;background:#1d4ed8;color:#fff;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+    #chatbot-send,#chatbot-mic{width:42px;height:42px;border:none;border-radius:12px;background:#ea580c;color:#fff;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
     #chatbot-mic{background:#0f172a}
     #chatbot-mic.listening{background:#dc2626;animation:pulse-mic 1s infinite}
     @keyframes pulse-mic{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}}
@@ -386,16 +426,35 @@
 </head>
 <body class="min-h-screen">
 
+  <!-- watermark kardus -->
+  <div class="watermark-box" aria-hidden="true">
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 22L32 10L56 22V48L32 60L8 48V22Z" fill="#ea580c" stroke="#ea580c" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M8 22L32 34L56 22" stroke="#9a3412" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M32 34V60" stroke="#9a3412" stroke-width="2"/>
+    </svg>
+  </div>
+
   <header class="app-header">
     <div class="wrap">
-      <div class="min-w-0">
-        <h1>DC Siborong Borong</h1>
-        <p class="sub">History · Scan · Cek Resi · Stok</p>
+      <div class="brand min-w-0">
+        <div class="logo-box">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M8 22L32 10L56 22V48L32 60L8 48V22Z" fill="white" fill-opacity="0.2" stroke="white" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M8 22L32 34L56 22" stroke="white" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M32 34V60" stroke="white" stroke-width="2.2"/>
+          <path d="M20 16L44 28" stroke="white" stroke-width="1.6" stroke-opacity="0.7"/>
+        </svg>
+        </div>
+        <div class="min-w-0">
+          <h1>DC Siborong Borong</h1>
+          <p class="sub">History · Scan · Cek Resi · Stok</p>
+        </div>
       </div>
       <div class="user-box">
-        <p class="text-[10px] text-blue-200" id="user-email-label">Powered by</p>
+        <p class="text-[10px] text-orange-100" id="user-email-label">Powered by</p>
         <p class="text-[11px] font-medium" id="user-name-label">Amos rcpdroid ~86</p>
-        <button type="button" id="btn-logout" onclick="logoutCloud()" class="hidden text-[10px] text-blue-100 underline mt-0.5">Keluar</button>
+        <button type="button" id="btn-logout" onclick="logoutCloud()" class="hidden text-[10px] text-orange-100 underline mt-0.5">Keluar</button>
       </div>
     </div>
   </header>
@@ -413,8 +472,8 @@
             <label class="block text-xs font-medium text-gray-500 mb-1">No. Resi / Tracking <span class="text-gray-400">(bisa lebih dari 1)</span></label>
             <div class="flex gap-2">
               <input type="text" id="resi" placeholder="Scan / ketik resi lalu tambah" class="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
-              <button type="button" onclick="tambahResiKeList()" class="bg-blue-700 text-white px-3 rounded-xl text-sm font-medium">+</button>
-              <button type="button" onclick="showTab('scan')" class="bg-blue-100 text-blue-700 px-3 rounded-xl text-sm font-medium">📷</button>
+              <button type="button" onclick="tambahResiKeList()" class="bg-orange-600 text-white px-3 rounded-xl text-sm font-medium">+</button>
+              <button type="button" onclick="showTab('scan')" class="bg-orange-100 text-orange-700 px-3 rounded-xl text-sm font-medium">📷</button>
               <button type="button" onclick="cekResiDariForm()" class="bg-green-100 text-green-700 px-3 rounded-xl text-sm font-medium">Cek</button>
             </div>
             <div id="resi-list" class="flex flex-wrap gap-1.5 mt-2"></div>
@@ -453,7 +512,7 @@
             <label class="block text-xs font-medium text-gray-500 mb-1">Keterangan</label>
             <input type="text" id="keterangan" placeholder="Detail tambahan..." class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
           </div>
-          <div id="spx-info" class="hidden bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-800"></div>
+          <div id="spx-info" class="hidden bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-orange-800"></div>
           <div>
             <div class="flex items-center justify-between gap-2 mb-1">
               <label class="block text-xs font-medium text-gray-500">Foto Paket (opsional, bisa banyak)</label>
@@ -476,7 +535,7 @@
             <p class="text-[10px] text-gray-400 mt-1">Maks. 8 foto · tiap foto dikompres otomatis</p>
           </div>
           <div class="flex gap-2 pt-1">
-            <button type="submit" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl font-medium text-sm">Simpan</button>
+            <button type="submit" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl font-medium text-sm">Simpan</button>
             <button type="button" id="btn-batal" onclick="resetForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl font-medium text-sm">Batal</button>
           </div>
         </form>
@@ -510,7 +569,7 @@
         <h2 class="font-semibold text-gray-800 mb-2 text-sm">📷 Scan QR / Barcode Resi</h2>
         <p class="text-xs text-gray-500 mb-3">Mode tunggal atau batch (kamera tetap menyala)</p>
         <div class="flex gap-2 mb-3">
-          <button type="button" id="mode-single" onclick="setScanMode('single')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white">1 Resi</button>
+          <button type="button" id="mode-single" onclick="setScanMode('single')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white">1 Resi</button>
           <button type="button" id="mode-batch" onclick="setScanMode('batch')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Batch</button>
           <button type="button" id="mode-stack" onclick="setScanMode('stack')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Stak Receive</button>
         </div>
@@ -556,16 +615,16 @@
 
         <div id="reader" class="w-full mb-3"></div>
         <div class="flex gap-2 mb-3">
-          <button id="btn-start-scan" onclick="startScan()" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Mulai Scan</button>
+          <button id="btn-start-scan" onclick="startScan()" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium">Mulai Scan</button>
           <button id="btn-stop-scan" onclick="stopScan()" class="hidden flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-medium">Stop</button>
         </div>
         <div id="scan-toast" class="hidden text-xs rounded-xl px-3 py-2 mb-2"></div>
         <div id="scan-result" class="hidden bg-green-50 border border-green-200 rounded-xl p-3">
           <p class="text-xs text-green-700 font-medium mb-1">Terakhir discan:</p>
           <p id="scanned-resi" class="font-mono text-sm font-bold text-gray-800 break-all"></p>
-          <p id="batch-count" class="text-xs text-blue-700 mt-1 hidden">Total di daftar: <b id="batch-count-num">0</b> resi</p>
+          <p id="batch-count" class="text-xs text-orange-700 mt-1 hidden">Total di daftar: <b id="batch-count-num">0</b> resi</p>
           <div class="flex gap-2 mt-3">
-            <button onclick="gunakanHasilScan()" class="flex-1 bg-blue-700 text-white py-2 rounded-xl text-xs font-medium">Ke History</button>
+            <button onclick="gunakanHasilScan()" class="flex-1 bg-orange-600 text-white py-2 rounded-xl text-xs font-medium">Ke History</button>
             <button onclick="cekResiScanned()" class="flex-1 bg-green-600 text-white py-2 rounded-xl text-xs font-medium">Cek Resi</button>
           </div>
         </div>
@@ -599,7 +658,7 @@
             <label class="block text-xs font-medium text-gray-500 mb-1">Nomor Resi</label>
             <input type="text" id="cek-resi" placeholder="Tempel / ketik nomor resi..." class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none font-mono" />
           </div>
-          <button onclick="trackResiUI()" id="btn-track" class="w-full bg-blue-700 text-white py-2.5 rounded-xl font-medium text-sm">Cek Sekarang</button>
+          <button onclick="trackResiUI()" id="btn-track" class="w-full bg-orange-600 text-white py-2.5 rounded-xl font-medium text-sm">Cek Sekarang</button>
         </div>
         <div id="cek-result" class="mt-4 hidden"></div>
       </div>
@@ -630,7 +689,7 @@
             <input type="text" id="stok-lokasi" placeholder="Gudang A - Rak 3" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
           </div>
           <div class="flex gap-2">
-            <button type="submit" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl font-medium text-sm">Simpan Stok</button>
+            <button type="submit" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl font-medium text-sm">Simpan Stok</button>
             <button type="button" id="stok-btn-batal" onclick="resetStokForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Batal</button>
           </div>
         </form>
@@ -692,7 +751,7 @@
             <p class="text-[10px] text-gray-400 mt-1">Maks. 8 foto</p>
           </div>
           <div class="flex gap-2 pt-1">
-            <button type="submit" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl font-medium text-sm">Simpan Surat Jalan</button>
+            <button type="submit" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl font-medium text-sm">Simpan Surat Jalan</button>
             <button type="button" id="sj-btn-batal" onclick="resetSjForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Batal</button>
           </div>
         </form>
@@ -707,11 +766,11 @@
     <section id="panel-laporan" class="hidden">
       <div class="grid grid-cols-2 gap-3 mb-4">
         <div class="card text-center !mb-0">
-          <p class="text-2xl font-bold text-blue-700" id="stat-total">0</p>
+          <p class="text-2xl font-bold text-orange-700" id="stat-total">0</p>
           <p class="text-xs text-gray-500">Total History</p>
         </div>
         <div class="card text-center !mb-0">
-          <p class="text-2xl font-bold text-blue-600" id="stat-pending">0</p>
+          <p class="text-2xl font-bold text-orange-600" id="stat-pending">0</p>
           <p class="text-xs text-gray-500">Received</p>
         </div>
         <div class="card text-center !mb-0">
@@ -745,9 +804,9 @@
       <p id="pin-error" class="text-xs text-red-600 hidden mb-2">PIN salah</p>
       <div class="flex gap-2">
         <button type="button" onclick="closePinModal()" class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium">Batal</button>
-        <button type="button" onclick="submitPin()" class="flex-1 bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">OK</button>
+        <button type="button" onclick="submitPin()" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium">OK</button>
       </div>
-      <button type="button" onclick="showUbahPin()" class="w-full mt-3 text-xs text-blue-600">Ubah PIN</button>
+      <button type="button" onclick="showUbahPin()" class="w-full mt-3 text-xs text-orange-600">Ubah PIN</button>
     </div>
   </div>
 
@@ -759,7 +818,7 @@
       <h2 class="font-bold text-gray-900 text-lg mb-1">DC Siborong Borong</h2>
       <p class="text-xs text-gray-500 mb-4">Login / daftar dengan email agar data tersimpan di cloud</p>
       <div class="flex gap-2 mb-3">
-        <button type="button" id="auth-tab-login" onclick="setAuthTab('login')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white">Login</button>
+        <button type="button" id="auth-tab-login" onclick="setAuthTab('login')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white">Login</button>
         <button type="button" id="auth-tab-register" onclick="setAuthTab('register')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Daftar</button>
       </div>
       <div id="auth-register-name-wrap" class="hidden mb-2">
@@ -775,7 +834,7 @@
         <input type="password" id="auth-password" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" placeholder="min. 6 karakter" autocomplete="current-password" />
       </div>
       <p id="auth-error" class="text-xs text-red-600 hidden mb-2"></p>
-      <button type="button" id="auth-submit" onclick="submitAuth()" class="w-full bg-blue-700 text-white py-2.5 rounded-xl text-sm font-medium">Masuk</button>
+      <button type="button" id="auth-submit" onclick="submitAuth()" class="w-full bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium">Masuk</button>
       <p class="text-[10px] text-gray-400 mt-3 text-center">Setiap akun hanya melihat datanya sendiri</p>
     </div>
   </div>
@@ -984,11 +1043,11 @@
       const submit = document.getElementById('auth-submit');
       if (authMode === 'register') {
         loginBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700';
-        regBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white';
+        regBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white';
         nameWrap.classList.remove('hidden');
         submit.textContent = 'Daftar';
       } else {
-        loginBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white';
+        loginBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white';
         regBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700';
         nameWrap.classList.add('hidden');
         submit.textContent = 'Masuk';
@@ -1224,7 +1283,7 @@
       else if (mode === 'stack') scanMode = 'stack';
       else scanMode = 'single';
       const styles = {
-        on: 'flex-1 py-2 rounded-xl text-xs font-semibold bg-blue-700 text-white',
+        on: 'flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white',
         off: 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700'
       };
       const bSingle = document.getElementById('mode-single');
@@ -1272,7 +1331,7 @@
           box.innerHTML = '<span class="text-[11px] text-gray-400">Belum ada resi ditambahkan</span>';
         } else {
           box.innerHTML = resiListData.map((r, i) =>
-            '<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-800 text-xs font-mono px-2 py-1 rounded-lg border border-blue-100">' +
+            '<span class="inline-flex items-center gap-1 bg-orange-50 text-orange-800 text-xs font-mono px-2 py-1 rounded-lg border border-orange-100">' +
             escapeHtml(r) +
             ' <button type="button" onclick="hapusResiDariList(' + i + ')" class="text-red-500 font-bold leading-none">×</button></span>'
           ).join('');
@@ -1291,7 +1350,7 @@
         return;
       }
       chips.innerHTML = resiListData.map((r, i) =>
-        '<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-800 text-xs font-mono px-2 py-1 rounded-lg border border-blue-100">' +
+        '<span class="inline-flex items-center gap-1 bg-orange-50 text-orange-800 text-xs font-mono px-2 py-1 rounded-lg border border-orange-100">' +
         escapeHtml(r) +
         ' <button type="button" onclick="hapusResiDariList(' + i + ')" class="text-red-500 font-bold leading-none">×</button></span>'
       ).join('');
@@ -1501,7 +1560,7 @@
           info.dataset.status = '';
         }
       } catch (e) {
-        info.innerHTML = '⚠️ ' + escapeHtml(e.message) + '<br><a href="https://spx.co.id/" target="_blank" class="underline text-blue-600">Buka SPX resmi</a>';
+        info.innerHTML = '⚠️ ' + escapeHtml(e.message) + '<br><a href="https://spx.co.id/" target="_blank" class="underline text-orange-600">Buka SPX resmi</a>';
       }
     }
 
@@ -1736,7 +1795,7 @@
       const restCount = ordered.length - compactLimit;
 
       const headLine = head.map(r => highlightText(r, q)).join(', ');
-      const moreLabel = restCount > 0 ? ' <span class="text-blue-600 font-semibold">+' + restCount + ' lainnya</span>' : '';
+      const moreLabel = restCount > 0 ? ' <span class="text-orange-600 font-semibold">+' + restCount + ' lainnya</span>' : '';
 
       let hitBadge = '';
       if (q && hits.length) {
@@ -1798,18 +1857,18 @@
         <div class="card">
           <div class="flex justify-between items-start gap-2 mb-1">
             <div class="min-w-0 flex-1">
-              <p class="text-xs text-gray-500 mb-0.5">${escapeHtml(item.masalah || '-')}${count > 1 ? ' · <span class="text-blue-600 font-semibold">' + count + ' resi</span>' : ''}</p>
+              <p class="text-xs text-gray-500 mb-0.5">${escapeHtml(item.masalah || '-')}${count > 1 ? ' · <span class="text-orange-600 font-semibold">' + count + ' resi</span>' : ''}</p>
               ${renderResiBlock(item, qRaw)}
             </div>
             <span class="badge-${item.status} px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap">${item.status}</span>
           </div>
           ${item.keterangan ? '<p class="text-xs text-gray-600 mb-1">' + escapeHtml(item.keterangan) + '</p>' : ''}
-          ${item.spx_status ? '<p class="text-[11px] text-blue-600 mb-1">SPX: ' + escapeHtml(item.spx_status) + '</p>' : ''}
+          ${item.spx_status ? '<p class="text-[11px] text-orange-600 mb-1">SPX: ' + escapeHtml(item.spx_status) + '</p>' : ''}
           ${(function(){ const photos = (item.foto_list && item.foto_list.length) ? item.foto_list : (item.foto ? [item.foto] : []); if (!photos.length) return ''; return '<div class="flex flex-wrap gap-1.5 mt-2 mb-1">' + photos.map(function(src){ return '<img src="' + src + '" class="photo-preview" onclick="openLightbox(this.src)" />'; }).join('') + '</div>'; })()}
           <div class="flex justify-between items-center mt-2">
             <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
             <div class="flex gap-3">
-              <button onclick='requirePin(() => editHistory(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-blue-600 text-xs font-medium">Edit</button>
+              <button onclick='requirePin(() => editHistory(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
               <button onclick="requirePin(() => deleteHistory('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
             </div>
           </div>
@@ -2269,13 +2328,13 @@
         <div class="card">
           <div class="flex justify-between items-start">
             <p class="font-semibold text-gray-800 text-sm">${escapeHtml(item.nama)}</p>
-            <p class="font-bold text-blue-700">${item.jumlah} <span class="text-xs font-normal text-gray-500">${escapeHtml(item.satuan)}</span></p>
+            <p class="font-bold text-orange-700">${item.jumlah} <span class="text-xs font-normal text-gray-500">${escapeHtml(item.satuan)}</span></p>
           </div>
           <p class="text-xs text-gray-500 mt-1">${escapeHtml(item.lokasi || '-')}</p>
           <div class="flex justify-between items-center mt-2">
             <span class="text-[11px] text-gray-400">${formatDate(item.updated_at)}</span>
             <div class="flex gap-3">
-              <button onclick='requirePin(() => editStok(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-blue-600 text-xs font-medium">Edit</button>
+              <button onclick='requirePin(() => editStok(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
               <button onclick="requirePin(() => deleteStok('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
             </div>
           </div>
@@ -2389,7 +2448,7 @@
             <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
             <div class="flex gap-3">
               <button onclick="printSj('${item.id}')" class="text-green-600 text-xs font-medium">Cetak</button>
-              <button onclick='requirePin(() => editSj(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-blue-600 text-xs font-medium">Edit</button>
+              <button onclick='requirePin(() => editSj(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
               <button onclick="requirePin(() => deleteSj('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
             </div>
           </div>
