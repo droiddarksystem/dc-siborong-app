@@ -1,0 +1,2966 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#ea580c" />
+  <meta name="description" content="DC Siborong Borong - History Paket, Scan QR, Cek Resi SPX & Stok" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DC Siborong" />
+  <title>DC Siborong Borong</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --blue: #ea580c;
+      --blue-dark: #c2410c;
+      --orange: #ea580c;
+      --orange-dark: #9a3412;
+      --orange-deep: #7c2d12;
+      --orange-soft: #fff7ed;
+      --bg: #fff7ed;
+      --card: #ffffff;
+      --text: #1c1917;
+      --muted: #78716c;
+      --line: #fed7aa;
+      --radius: 16px;
+      --nav-h: 58px;
+      --shadow: 0 4px 20px rgba(234, 88, 12, 0.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      max-width: 100vw;
+      overflow-x: hidden;
+      background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 40%, #fef3c7 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+    }
+    /* Cegah zoom otomatis iOS pada fokus input */
+    input, select, textarea, button {
+      font-size: 16px !important;
+      font-family: inherit;
+    }
+    input, select, textarea {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.2);
+    }
+    button { cursor: pointer; }
+    img { max-width: 100%; height: auto; }
+
+    .badge-received     { background: #fed7aa; color: #c2410c; }
+    .badge-packed       { background: #fef3c7; color: #92400e; }
+    .badge-transporting { background: #e0e7ff; color: #9a3412; }
+    .badge-transported  { background: #d1fae5; color: #065f46; }
+    .badge-arrival      { background: #fce7f3; color: #9d174d; }
+
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding-top: max(8px, env(safe-area-inset-top));
+      background: linear-gradient(135deg, #9a3412 0%, #ea580c 45%, #f97316 100%);
+      color: #fff;
+      box-shadow: 0 8px 28px rgba(234, 88, 12, 0.28);
+    }
+    .app-header .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .app-header .logo-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .app-header .logo-box svg { width: 26px; height: 26px; opacity: 0.92; }
+    .watermark-box {
+      position: fixed;
+      right: -20px;
+      bottom: 70px;
+      width: 160px;
+      height: 160px;
+      opacity: 0.06;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .watermark-box svg { width: 100%; height: 100%; }
+    .app-header .wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 10px 14px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .app-header h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .app-header .sub {
+      margin: 2px 0 0;
+      font-size: 11px;
+      color: #ffedd5;
+    }
+    .app-header .user-box {
+      text-align: right;
+      flex-shrink: 0;
+      max-width: 42%;
+    }
+    .app-header .user-box p {
+      margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .main-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 12px 12px calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(254, 215, 170, 0.7);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+    .card h2, .section-title {
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #ea580c, #f97316);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      min-height: 44px;
+      padding: 10px 14px;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3);
+    }
+    .btn-ghost {
+      background: #f1f5f9;
+      color: #334155;
+      border: none;
+      border-radius: 12px;
+      min-height: 44px;
+      padding: 10px 12px;
+      font-weight: 600;
+    }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-row > * { flex: 1; min-width: 0; }
+
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      max-width: 480px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 2px;
+      background: rgba(255,255,255,0.97);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--line);
+      padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+      box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
+    }
+    .bottom-nav button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-height: 52px;
+      padding: 4px 2px;
+      border: none;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1.05;
+    }
+    .bottom-nav button .ico {
+      font-size: 18px;
+      line-height: 1;
+    }
+    .bottom-nav button.active {
+      color: #c2410c;
+      background: linear-gradient(180deg, #ffedd5, #fed7aa);
+    }
+
+    #reader { border-radius: 12px; overflow: hidden; background: #0f172a; }
+    #reader video { border-radius: 12px; width: 100% !important; }
+    .photo-preview {
+      width: 72px;
+      height: 72px;
+      max-height: none;
+      border-radius: 10px;
+      object-fit: cover;
+      cursor: pointer;
+      border: 1px solid var(--line);
+    }
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0,0,0,0.92);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      padding-top: max(16px, env(safe-area-inset-top));
+    }
+    #lightbox.show { display: flex; }
+    #lightbox img {
+      max-width: 100%;
+      max-height: 85vh;
+      border-radius: 12px;
+      object-fit: contain;
+    }
+    #lightbox .close-btn {
+      position: absolute;
+      top: max(12px, env(safe-area-inset-top));
+      right: 12px;
+      background: #fff;
+      color: #111;
+      border: none;
+      border-radius: 999px;
+      width: 40px;
+      height: 40px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    #pin-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      background: rgba(0,0,0,0.55);
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
+    }
+    #pin-modal.show { display: flex; }
+    #pin-modal .sheet {
+      width: 100%;
+      max-width: 480px;
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    }
+    .timeline-item {
+      border-left: 2px solid #fdba74;
+      padding-left: 12px;
+      margin-left: 6px;
+      padding-bottom: 10px;
+    }
+    .timeline-item:last-child { border-left-color: transparent; }
+
+    /* Utilitas rapat mobile */
+    .text-muted { color: var(--muted); }
+    .gap-tight > * + * { margin-top: 10px; }
+    .chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #ffedd5;
+      color: #c2410c;
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid #fed7aa;
+    }
+
+    @media (min-width: 480px) {
+      #pin-modal { align-items: center; padding: 16px; }
+      #pin-modal .sheet { border-radius: 16px; }
+    }
+
+    
+    .resi-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+      max-width: 100%;
+      word-break: break-all;
+    }
+    .resi-chip.hit {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fcd34d;
+      font-weight: 700;
+      box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+    }
+    .resi-more-btn {
+      background: none;
+      border: none;
+      color: #c2410c;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 4px;
+      cursor: pointer;
+    }
+    .resi-compact-line {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+    .resi-compact-line mark {
+      background: #fde68a;
+      color: #78350f;
+      padding: 0 2px;
+      border-radius: 3px;
+      font-weight: 700;
+    }
+
+    
+    .stack-chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-family:ui-monospace,monospace; padding:4px 8px; border-radius:8px; border:1px solid #e2e8f0; background:#f8fafc; color:#334155; }
+    .stack-chip.ok { background:#dcfce7; border-color:#86efac; color:#166534; font-weight:700; }
+    .stack-chip.miss { background:#f1f5f9; color:#64748b; }
+    .stack-chip.extra { background:#fef3c7; border-color:#fcd34d; color:#92400e; }
+    #pda-input:focus { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.2); }
+
+    /* Chatbot */
+    #chatbot-fab{position:fixed;right:16px;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));z-index:50;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#c2410c,#f97316);color:#fff;font-size:24px;box-shadow:0 8px 24px rgba(234,88,12,.4);display:flex;align-items:center;justify-content:center}
+    #chatbot-fab:active{transform:scale(.94)}
+    #chatbot-panel{display:none;position:fixed;right:12px;bottom:calc(var(--nav-h) + 80px + env(safe-area-inset-bottom));z-index:55;width:min(380px,calc(100vw - 24px));height:min(520px,calc(100vh - 160px));background:#fff;border-radius:18px;box-shadow:0 16px 48px rgba(15,23,42,.22);border:1px solid #e2e8f0;flex-direction:column;overflow:hidden}
+    #chatbot-panel.open{display:flex}
+    #chatbot-header{background:linear-gradient(135deg,#9a3412,#ea580c);color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    #chatbot-header h3{margin:0;font-size:14px;font-weight:700}
+    #chatbot-header .sub{margin:2px 0 0;font-size:10px;color:#fdba74}
+    #chatbot-header .actions{display:flex;gap:6px}
+    #chatbot-header button{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:14px}
+    #chatbot-messages{flex:1;overflow-y:auto;padding:12px;background:#f8fafc;display:flex;flex-direction:column;gap:10px}
+    .chat-msg{max-width:88%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.45;word-break:break-word}
+    .chat-msg.bot{align-self:flex-start;background:#fff;border:1px solid #e2e8f0;border-bottom-left-radius:4px}
+    .chat-msg.user{align-self:flex-end;background:linear-gradient(135deg,#ea580c,#f97316);color:#fff;border-bottom-right-radius:4px}
+    .chat-msg .msg-meta{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10px;opacity:.7}
+    .chat-msg .speak-btn{background:#ffedd5;border:1px solid #fed7aa;color:#c2410c;border-radius:6px;padding:2px 6px;font-size:11px;cursor:pointer}
+    .chat-quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;background:#f8fafc}
+    .chat-quick button{background:#fff;border:1px solid #fed7aa;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:600;color:#c2410c}
+    #chatbot-input-area{border-top:1px solid #e2e8f0;padding:10px;background:#fff;display:flex;gap:8px;align-items:flex-end}
+    #chatbot-input{flex:1;min-height:42px;max-height:90px;resize:none;border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;font-size:14px!important}
+    #chatbot-send,#chatbot-mic{width:42px;height:42px;border:none;border-radius:12px;background:#ea580c;color:#fff;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+    #chatbot-mic{background:#0f172a}
+    #chatbot-mic.listening{background:#dc2626;animation:pulse-mic 1s infinite}
+    @keyframes pulse-mic{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}}
+    .chat-typing{align-self:flex-start;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 14px;font-size:12px;color:#64748b}
+    .chat-typing span{display:inline-block;width:6px;height:6px;background:#94a3b8;border-radius:50%;margin:0 1px;animation:typing-dot 1.2s infinite ease-in-out}
+    .chat-typing span:nth-child(2){animation-delay:.2s}
+    .chat-typing span:nth-child(3){animation-delay:.4s}
+    @keyframes typing-dot{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-4px);opacity:1}}
+
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- watermark kardus -->
+  <div class="watermark-box" aria-hidden="true">
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 22L32 10L56 22V48L32 60L8 48V22Z" fill="#ea580c" stroke="#ea580c" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M8 22L32 34L56 22" stroke="#9a3412" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M32 34V60" stroke="#9a3412" stroke-width="2"/>
+    </svg>
+  </div>
+
+  <header class="app-header">
+    <div class="wrap">
+      <div class="brand min-w-0">
+        <div class="logo-box">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M8 22L32 10L56 22V48L32 60L8 48V22Z" fill="white" fill-opacity="0.2" stroke="white" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M8 22L32 34L56 22" stroke="white" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M32 34V60" stroke="white" stroke-width="2.2"/>
+          <path d="M20 16L44 28" stroke="white" stroke-width="1.6" stroke-opacity="0.7"/>
+        </svg>
+        </div>
+        <div class="min-w-0">
+          <h1>DC Siborong Borong</h1>
+          <p class="sub">History · Scan · Cek Resi · Stok</p>
+        </div>
+      </div>
+      <div class="user-box">
+        <p class="text-[10px] text-orange-100" id="user-email-label">Powered by</p>
+        <p class="text-[11px] font-medium" id="user-name-label">Amos rcpdroid ~86</p>
+        <button type="button" id="btn-logout" onclick="logoutCloud()" class="hidden text-[10px] text-orange-100 underline mt-0.5">Keluar</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-wrap max-w-lg mx-auto px-3 pt-3">
+
+
+    <!-- HISTORY -->
+    <section id="panel-history">
+      <div class="card">
+        <h2 class="font-semibold text-gray-800 mb-3 text-sm" id="form-title">+ Tambah History Baru</h2>
+        <form id="form-history" class="space-y-3">
+          <input type="hidden" id="edit-id" />
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">No. Resi / Tracking <span class="text-gray-400">(bisa lebih dari 1)</span></label>
+            <div class="flex gap-2">
+              <input type="text" id="resi" placeholder="Scan / ketik resi lalu tambah" class="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+              <button type="button" onclick="tambahResiKeList()" class="bg-orange-600 text-white px-3 rounded-xl text-sm font-medium">+</button>
+              <button type="button" onclick="showTab('scan')" class="bg-orange-100 text-orange-700 px-3 rounded-xl text-sm font-medium">📷</button>
+              <button type="button" onclick="cekResiDariForm()" class="bg-green-100 text-green-700 px-3 rounded-xl text-sm font-medium">Cek</button>
+            </div>
+            <div id="resi-list" class="flex flex-wrap gap-1.5 mt-2"></div>
+            <input type="hidden" id="resi-multi" value="" />
+            <p class="text-[10px] text-gray-400 mt-1">Tekan + atau Enter untuk menambah resi ke daftar masalah ini</p>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Jenis Masalah</label>
+              <select id="masalah" required class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+                <option value="">-- Pilih --</option>
+                <option value="Handling Area">Handling Area</option>
+                <option value="Damage">Damage</option>
+                <option value="Disposed">Disposed</option>
+                <option value="Rusak">Rusak</option>
+                <option value="Hilang">Hilang</option>
+                <option value="Salah Kirim">Salah Kirim</option>
+                <option value="Terlambat">Terlambat</option>
+                <option value="Isi Kurang">Isi Kurang</option>
+                <option value="Kemasan Rusak">Kemasan Rusak</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+              <select id="status" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+                <option value="received">Received</option>
+                <option value="packed">Packed</option>
+                <option value="transporting">Transporting</option>
+                <option value="transported">Transported</option>
+                <option value="arrival">Arrival</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Keterangan</label>
+            <input type="text" id="keterangan" placeholder="Detail tambahan..." class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+          </div>
+          <div id="spx-info" class="hidden bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-orange-800"></div>
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <label class="block text-xs font-medium text-gray-500">Foto Paket (opsional, bisa banyak)</label>
+              <label class="flex items-center gap-1.5 text-[11px] text-gray-600 cursor-pointer select-none">
+                <input type="checkbox" id="ts-photo-toggle" class="rounded border-gray-300" checked onchange="setTimestampPhotoEnabled(this.checked)" />
+                ⏱ Stempel waktu
+              </label>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <label class="flex-1 min-w-[120px] border border-dashed border-gray-300 rounded-xl px-3 py-3 text-center text-sm text-gray-600 cursor-pointer bg-gray-50">
+                📷 Kamera
+                <input type="file" id="foto-input-cam" accept="image/*" capture="environment" class="hidden" onchange="handleFoto(event)" />
+              </label>
+              <label class="flex-1 min-w-[120px] border border-dashed border-gray-300 rounded-xl px-3 py-3 text-center text-sm text-gray-600 cursor-pointer bg-gray-50">
+                🖼️ Galeri
+                <input type="file" id="foto-input-gal" accept="image/*" multiple class="hidden" onchange="handleFoto(event)" />
+              </label>
+            </div>
+            <div id="foto-preview-list" class="flex flex-wrap gap-2"></div>
+            <p class="text-[10px] text-gray-400 mt-1">Maks. 8 foto · tiap foto dikompres otomatis</p>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="submit" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl font-medium text-sm">Simpan</button>
+            <button type="button" id="btn-batal" onclick="resetForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl font-medium text-sm">Batal</button>
+          </div>
+        </form>
+      </div>
+      <div class="flex flex-col gap-2 mb-3">
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="text" id="search" placeholder="Cari resi / 4 huruf belakang / masalah..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none" oninput="loadHistory()" />
+          <select id="filter-status" onchange="loadHistory()" class="border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white">
+            <option value="semua">Semua Status</option>
+            <option value="received">Received</option>
+            <option value="packed">Packed</option>
+            <option value="transporting">Transporting</option>
+            <option value="transported">Transported</option>
+            <option value="arrival">Arrival</option>
+          </select>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2 items-center">
+          <input type="date" id="filter-date-from" onchange="loadHistory()" class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white" />
+          <span class="text-xs text-gray-400 hidden sm:inline">s/d</span>
+          <input type="date" id="filter-date-to" onchange="loadHistory()" class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white" />
+          <button type="button" onclick="clearDateFilter()" class="px-3 py-2 text-xs text-gray-600 bg-gray-100 rounded-xl whitespace-nowrap">Reset Tanggal</button>
+          <button onclick="exportCSV()" class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">⬇ CSV</button>
+        </div>
+      </div>
+      <div id="history-list" class="space-y-2"><p class="text-center text-gray-400 text-sm py-8">Memuat data...</p></div>
+    </section>
+
+    <!-- SCAN -->
+    <section id="panel-scan" class="hidden">
+      <div class="card">
+        <h2 class="font-semibold text-gray-800 mb-2 text-sm">📷 Scan QR / Barcode Resi</h2>
+        <p class="text-xs text-gray-500 mb-3">Mode tunggal atau batch (kamera tetap menyala)</p>
+        <div class="flex gap-2 mb-3">
+          <button type="button" id="mode-single" onclick="setScanMode('single')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white">1 Resi</button>
+          <button type="button" id="mode-batch" onclick="setScanMode('batch')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Batch</button>
+          <button type="button" id="mode-stack" onclick="setScanMode('stack')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Stak Receive</button>
+        </div>
+
+        <!-- PDA laser wedge -->
+        <div class="mb-3 p-3 rounded-xl border border-violet-200 bg-violet-50">
+          <p class="text-xs font-semibold text-violet-800 mb-1">🔫 Tembak PDA / Laser</p>
+          <p class="text-[10px] text-violet-600 mb-2">Fokus kotak ini, lalu tembak barcode. Otomatis tanpa Enter. PDA: Simulate keystroke.</p>
+          <input type="text" id="pda-input" autocomplete="off" autocapitalize="characters" inputmode="none"
+            placeholder="Ketuk di sini lalu tembak resi (otomatis)..."
+            class="w-full border border-violet-300 rounded-xl px-3 py-3 text-sm font-mono outline-none bg-white"
+            oninput="pdaInputAuto(event)"
+            onkeydown="pdaInputKey(event)" />
+        </div>
+
+        <!-- Stack receive list -->
+        <div id="stack-panel" class="hidden mb-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50">
+          <p class="text-xs font-semibold text-emerald-800 mb-1">📦 Stak Receive — daftar yang harus diterima</p>
+          <p class="text-[10px] text-emerald-700 mb-2">Import Excel/CSV atau tempel resi. Scan/tembak → otomatis cocok & notifikasi.</p>
+          <div class="flex flex-wrap gap-2 mb-2">
+            <label class="flex-1 min-w-[100px] border border-dashed border-emerald-400 rounded-xl px-2 py-2.5 text-center text-xs font-semibold text-emerald-800 cursor-pointer bg-white">
+              📄 Excel / CSV
+              <input type="file" id="stack-file-excel" accept=".xlsx,.xls,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="hidden" onchange="importStackFile(event)" />
+            </label>
+            <label class="flex-1 min-w-[100px] border border-dashed border-emerald-400 rounded-xl px-2 py-2.5 text-center text-xs font-semibold text-emerald-800 cursor-pointer bg-white">
+              📕 PDF
+              <input type="file" id="stack-file-pdf" accept=".pdf,application/pdf" class="hidden" onchange="importStackPdf(event)" />
+            </label>
+            <label class="flex-1 min-w-[100px] border border-dashed border-amber-400 rounded-xl px-2 py-2.5 text-center text-xs font-semibold text-amber-900 cursor-pointer bg-amber-50">
+              📷 Scan Kertas
+              <input type="file" id="stack-file-ocr" accept="image/*" capture="environment" class="hidden" onchange="importStackOcr(event)" />
+            </label>
+          </div>
+          <p class="text-[10px] text-amber-800/80 mb-1">Scan kertas: foto daftar resi → OCR membaca tulisan otomatis.</p>
+          <p id="stack-import-info" class="text-[10px] text-emerald-700 mb-2 hidden"></p>
+          <textarea id="stack-source" rows="4" placeholder="SPX111...&#10;SPX222...&#10;atau hasil import muncul di sini"
+            class="w-full border border-emerald-300 rounded-xl px-3 py-2 text-xs font-mono outline-none bg-white mb-2"></textarea>
+          <div class="flex gap-2 mb-2">
+            <button type="button" onclick="loadStackList()" class="flex-1 bg-emerald-700 text-white py-2 rounded-xl text-xs font-semibold">Muat Daftar</button>
+            <button type="button" onclick="clearStackList()" class="px-3 bg-white border border-emerald-300 text-emerald-800 py-2 rounded-xl text-xs font-semibold">Reset</button>
+          </div>
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="font-semibold text-emerald-900">Progress: <span id="stack-progress">0 / 0</span></span>
+            <span id="stack-status" class="text-emerald-700"></span>
+          </div>
+          <div id="stack-chips" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto"></div>
+        </div>
+
+        <div id="reader" class="w-full mb-3"></div>
+        <div class="flex gap-2 mb-3">
+          <button id="btn-start-scan" onclick="startScan()" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium">Mulai Scan</button>
+          <button id="btn-stop-scan" onclick="stopScan()" class="hidden flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-medium">Stop</button>
+        </div>
+        <div id="scan-toast" class="hidden text-xs rounded-xl px-3 py-2 mb-2"></div>
+        <div id="scan-result" class="hidden bg-green-50 border border-green-200 rounded-xl p-3">
+          <p class="text-xs text-green-700 font-medium mb-1">Terakhir discan:</p>
+          <p id="scanned-resi" class="font-mono text-sm font-bold text-gray-800 break-all"></p>
+          <p id="batch-count" class="text-xs text-orange-700 mt-1 hidden">Total di daftar: <b id="batch-count-num">0</b> resi</p>
+          <div class="flex gap-2 mt-3">
+            <button onclick="gunakanHasilScan()" class="flex-1 bg-orange-600 text-white py-2 rounded-xl text-xs font-medium">Ke History</button>
+            <button onclick="cekResiScanned()" class="flex-1 bg-green-600 text-white py-2 rounded-xl text-xs font-medium">Cek Resi</button>
+          </div>
+        </div>
+        <div id="batch-resi-preview" class="mt-3 hidden">
+          <p class="text-xs font-medium text-gray-600 mb-1">Daftar batch (sama dengan form History)</p>
+          <div id="batch-resi-chips" class="flex flex-wrap gap-1.5"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CEK RESI -->
+    <section id="panel-cek" class="hidden">
+      <div class="card">
+        <h2 class="font-semibold text-gray-800 mb-3 text-sm">🔍 Cek Resi Multi Kurir</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Kurir</label>
+            <select id="cek-courier" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+              <option value="spx">Shopee Express (SPX)</option>
+              <option value="jne">JNE</option>
+              <option value="jnt">J&T</option>
+              <option value="sicepat">SiCepat</option>
+              <option value="anteraja">AnterAja</option>
+              <option value="pos">Pos Indonesia</option>
+              <option value="ninja">Ninja Express</option>
+              <option value="lion">Lion Parcel</option>
+              <option value="auto">Auto Deteksi</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Nomor Resi</label>
+            <input type="text" id="cek-resi" placeholder="Tempel / ketik nomor resi..." class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none font-mono" />
+          </div>
+          <button onclick="trackResiUI()" id="btn-track" class="w-full bg-orange-600 text-white py-2.5 rounded-xl font-medium text-sm">Cek Sekarang</button>
+        </div>
+        <div id="cek-result" class="mt-4 hidden"></div>
+      </div>
+    </section>
+
+    <!-- STOK -->
+    <section id="panel-stok" class="hidden">
+      <div class="card">
+        <h2 class="font-semibold text-gray-800 mb-3 text-sm" id="stok-form-title">+ Tambah Barang Stok</h2>
+        <form id="form-stok" class="space-y-3">
+          <input type="hidden" id="stok-edit-id" />
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Nama Barang</label>
+            <input type="text" id="stok-nama" required placeholder="Contoh: Kardus M" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Jumlah</label>
+              <input type="number" id="stok-jumlah" required min="0" value="0" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Satuan</label>
+              <input type="text" id="stok-satuan" value="pcs" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Lokasi / Rak</label>
+            <input type="text" id="stok-lokasi" placeholder="Gudang A - Rak 3" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl font-medium text-sm">Simpan Stok</button>
+            <button type="button" id="stok-btn-batal" onclick="resetStokForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Batal</button>
+          </div>
+        </form>
+      </div>
+      <div id="stok-list" class="space-y-2"></div>
+    </section>
+
+
+    <!-- SURAT JALAN -->
+    <section id="panel-sj" class="hidden">
+      <div class="card">
+        <h2 class="font-semibold text-gray-800 mb-3 text-sm" id="sj-form-title">+ Buat Surat Jalan Pemberangkatan</h2>
+        <form id="form-sj" class="space-y-3">
+          <input type="hidden" id="sj-edit-id" />
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Nomor LT (Line Trip)</label>
+            <input type="text" id="sj-lt" required placeholder="Contoh: LT123456" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none font-mono uppercase" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Berat Barang (kg)</label>
+              <input type="number" id="sj-berat" required min="0" step="0.01" placeholder="0" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Jumlah Barang</label>
+              <input type="number" id="sj-jumlah" required min="0" step="1" placeholder="0" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">High Value</label>
+              <select id="sj-hv" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+                <option value="Tidak">Tidak</option>
+                <option value="Ya">Ya</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-500 mb-1">Nilai HV (opsional)</label>
+              <input type="text" id="sj-hv-nilai" placeholder="Rp / keterangan" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Tujuan / Keterangan</label>
+            <input type="text" id="sj-tujuan" placeholder="DC tujuan / catatan" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Foto / Bukti (opsional, bisa banyak)</label>
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <label class="flex-1 min-w-[120px] border border-dashed border-gray-300 rounded-xl px-3 py-3 text-center text-sm text-gray-600 cursor-pointer bg-gray-50">
+                📷 Kamera
+                <input type="file" id="sj-foto-input-cam" accept="image/*" capture="environment" class="hidden" onchange="handleSjFoto(event)" />
+              </label>
+              <label class="flex-1 min-w-[120px] border border-dashed border-gray-300 rounded-xl px-3 py-3 text-center text-sm text-gray-600 cursor-pointer bg-gray-50">
+                🖼️ Galeri
+                <input type="file" id="sj-foto-input-gal" accept="image/*" multiple class="hidden" onchange="handleSjFoto(event)" />
+              </label>
+            </div>
+            <div id="sj-foto-preview-list" class="flex flex-wrap gap-2"></div>
+            <p class="text-[10px] text-gray-400 mt-1">Maks. 8 foto</p>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="submit" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl font-medium text-sm">Simpan Surat Jalan</button>
+            <button type="button" id="sj-btn-batal" onclick="resetSjForm()" class="hidden px-4 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm">Batal</button>
+          </div>
+        </form>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input type="text" id="sj-search" placeholder="Cari nomor LT..." class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none" oninput="loadSj()" />
+      </div>
+      <div id="sj-list" class="space-y-2"></div>
+    </section>
+
+    <!-- LAPORAN -->
+    <section id="panel-laporan" class="hidden">
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="card text-center !mb-0">
+          <p class="text-2xl font-bold text-orange-700" id="stat-total">0</p>
+          <p class="text-xs text-gray-500">Total History</p>
+        </div>
+        <div class="card text-center !mb-0">
+          <p class="text-2xl font-bold text-orange-600" id="stat-pending">0</p>
+          <p class="text-xs text-gray-500">Received</p>
+        </div>
+        <div class="card text-center !mb-0">
+          <p class="text-2xl font-bold text-yellow-600" id="stat-proses">0</p>
+          <p class="text-xs text-gray-500">Packed / Transporting</p>
+        </div>
+        <div class="card text-center !mb-0">
+          <p class="text-2xl font-bold text-green-600" id="stat-selesai">0</p>
+          <p class="text-xs text-gray-500">Transported / Arrival</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-gray-200 p-4 mb-4">
+        <h3 class="font-semibold text-sm text-gray-800 mb-3">Jenis Masalah</h3>
+        <div id="stat-masalah" class="space-y-2 text-sm"></div>
+      </div>
+      <button onclick="exportCSV()" class="w-full bg-green-600 text-white py-3 rounded-xl font-medium text-sm mb-2">⬇ Export CSV</button>
+      <button onclick="requirePin(() => clearAllData(), 'PIN untuk Hapus Semua Data')" class="w-full bg-red-100 text-red-600 py-2.5 rounded-xl text-sm">Hapus Semua Data Lokal</button>
+    </section>
+  </main>
+
+  <div id="lightbox" onclick="closeLightbox(event)">
+    <button class="close-btn" onclick="closeLightbox(event)" type="button">×</button>
+    <img id="lightbox-img" src="" alt="Foto paket" />
+  </div>
+
+  <div id="pin-modal">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <h3 class="font-semibold text-gray-800 mb-1" id="pin-title">Masukkan PIN</h3>
+      <p class="text-xs text-gray-500 mb-3" id="pin-desc">Diperlukan untuk Edit / Hapus data</p>
+      <input type="password" id="pin-input" inputmode="numeric" maxlength="8" placeholder="PIN" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none mb-2" />
+      <p id="pin-error" class="text-xs text-red-600 hidden mb-2">PIN salah</p>
+      <div class="flex gap-2">
+        <button type="button" onclick="closePinModal()" class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium">Batal</button>
+        <button type="button" onclick="submitPin()" class="flex-1 bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium">OK</button>
+      </div>
+      <button type="button" onclick="showUbahPin()" class="w-full mt-3 text-xs text-orange-600">Ubah PIN</button>
+    </div>
+  </div>
+
+
+  <!-- AUTH -->
+  <div id="auth-modal" class="fixed inset-0 z-[120] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 w-full max-w-sm shadow-xl safe-bottom">
+      <div class="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3 sm:hidden"></div>
+      <h2 class="font-bold text-gray-900 text-lg mb-1">DC Siborong Borong</h2>
+      <p class="text-xs text-gray-500 mb-4">Login / daftar dengan email agar data tersimpan di cloud</p>
+      <div class="flex gap-2 mb-3">
+        <button type="button" id="auth-tab-login" onclick="setAuthTab('login')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white">Login</button>
+        <button type="button" id="auth-tab-register" onclick="setAuthTab('register')" class="flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700">Daftar</button>
+      </div>
+      <div id="auth-register-name-wrap" class="hidden mb-2">
+        <label class="block text-xs text-gray-500 mb-1">Nama</label>
+        <input type="text" id="auth-name" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" placeholder="Nama petugas" />
+      </div>
+      <div class="mb-2">
+        <label class="block text-xs text-gray-500 mb-1">Email</label>
+        <input type="email" id="auth-email" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" placeholder="nama@email.com" autocomplete="username" />
+      </div>
+      <div class="mb-3">
+        <label class="block text-xs text-gray-500 mb-1">Password</label>
+        <input type="password" id="auth-password" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" placeholder="min. 6 karakter" autocomplete="current-password" />
+      </div>
+      <p id="auth-error" class="text-xs text-red-600 hidden mb-2"></p>
+      <button type="button" id="auth-submit" onclick="submitAuth()" class="w-full bg-orange-600 text-white py-2.5 rounded-xl text-sm font-medium">Masuk</button>
+      <p class="text-[10px] text-gray-400 mt-3 text-center">Setiap akun hanya melihat datanya sendiri</p>
+    </div>
+  </div>
+
+  
+  <button type="button" id="chatbot-fab" onclick="toggleChatbot()" title="Asisten DC">💬</button>
+  <div id="chatbot-panel" aria-live="polite">
+    <div id="chatbot-header">
+      <div>
+        <h3>Asisten DC Siborong</h3>
+        <p class="sub">Cek resi · Stok · History · Suara</p>
+      </div>
+      <div class="actions">
+        <button type="button" id="chatbot-voice-toggle" onclick="toggleAutoSpeak()" title="Suara otomatis">🔊</button>
+        <button type="button" onclick="clearChatbot()" title="Hapus chat">🗑️</button>
+        <button type="button" onclick="toggleChatbot()" title="Tutup">✕</button>
+      </div>
+    </div>
+    <div id="chatbot-messages"></div>
+    <div class="chat-quick">
+      <button type="button" onclick="chatQuick('bantuan')">Bantuan</button>
+      <button type="button" onclick="chatQuick('cek resi')">Cek Resi</button>
+      <button type="button" onclick="chatQuick('ringkas stok')">Stok</button>
+      <button type="button" onclick="chatQuick('laporan hari ini')">Laporan</button>
+    </div>
+    <div id="chatbot-input-area">
+      <button type="button" id="chatbot-mic" onclick="toggleVoiceInput()" title="Bicara">🎤</button>
+      <textarea id="chatbot-input" rows="1" placeholder="Tulis perintah... mis: cek SPX123" onkeydown="chatInputKey(event)"></textarea>
+      <button type="button" id="chatbot-send" onclick="sendChatMessage()" title="Kirim">➤</button>
+    </div>
+  </div>
+
+  <nav class="bottom-nav max-w-lg mx-auto" id="bottom-nav">
+    <button type="button" id="tab-history" onclick="showTab('history')" class="active"><span class="ico">📦</span><span>History</span></button>
+    <button type="button" id="tab-scan" onclick="showTab('scan')"><span class="ico">📷</span><span>Scan</span></button>
+    <button type="button" id="tab-cek" onclick="showTab('cek')"><span class="ico">🔍</span><span>Cek</span></button>
+    <button type="button" id="tab-stok" onclick="showTab('stok')"><span class="ico">📋</span><span>Stok</span></button>
+    <button type="button" id="tab-sj" onclick="showTab('sj')"><span class="ico">🚚</span><span>SJ</span></button>
+    <button type="button" id="tab-laporan" onclick="showTab('laporan')"><span class="ico">📊</span><span>Laporan</span></button>
+  </nav>
+
+  <script>
+    const STORAGE_KEY = 'dc_siborong_data_v3';
+    const PIN_KEY = 'dc_siborong_pin';
+    const DEFAULT_PIN = '1234';
+    const API_TRACK = '/api/track';
+    const AUTH_TOKEN_KEY = 'dc_siborong_token';
+    const AUTH_USER_KEY = 'dc_siborong_user';
+    let cloudEnabled = false;
+    let authMode = 'login';
+    let syncTimer = null;
+
+    let html5QrCode = null;
+    let lastScanned = '';
+    let pendingPinAction = null;
+    let lastSpxStatus = '';
+
+    function getData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const d = JSON.parse(raw);
+          if (!d.sj) d.sj = [];
+          if (!d.history) d.history = [];
+          if (!d.stok) d.stok = [];
+          return d;
+        }
+      } catch(e) {}
+      return { history: [], stok: [], sj: [] };
+    }
+    function estimateDataBytes(data) {
+      try { return JSON.stringify(data).length; } catch (e) { return 0; }
+    }
+
+    /** Hapus foto dari item lama agar muat di LocalStorage (~5MB) */
+    function stripPhotosForQuota(data) {
+      data = data || getData();
+      const hist = (data.history || []).slice().sort(function(a,b){
+        return new Date(a.updated_at || a.created_at || 0) - new Date(b.updated_at || b.created_at || 0);
+      });
+      const sj = (data.sj || []).slice().sort(function(a,b){
+        return new Date(a.updated_at || a.created_at || 0) - new Date(b.updated_at || b.created_at || 0);
+      });
+      let stripped = 0;
+      function clearFoto(item) {
+        let n = 0;
+        if (item.foto) { item.foto = null; n++; }
+        if (item.foto_list && item.foto_list.length) { n += item.foto_list.length; item.foto_list = []; }
+        return n;
+      }
+      // 1) hapus foto history tertua
+      for (let i = 0; i < hist.length; i++) {
+        stripped += clearFoto(hist[i]);
+        data.history = (data.history || []).map(function(h) {
+          const u = hist.find(function(x){ return x.id === h.id; });
+          return u || h;
+        });
+        // rewrite history from hist which we mutated
+        const map = {};
+        hist.forEach(function(h){ map[h.id] = h; });
+        data.history = (data.history || []).map(function(h){ return map[h.id] || h; });
+        if (estimateDataBytes(data) < 3500000) break;
+      }
+      // sync hist mutations into data.history
+      (function(){
+        const map = {};
+        hist.forEach(function(h){ map[String(h.id)] = h; });
+        data.history = (data.history || []).map(function(h){ return map[String(h.id)] || h; });
+      })();
+      if (estimateDataBytes(data) >= 3500000) {
+        for (let i = 0; i < sj.length; i++) {
+          stripped += clearFoto(sj[i]);
+          if (estimateDataBytes({ history: data.history, stok: data.stok, sj: sj }) < 3500000) break;
+        }
+        const map = {};
+        sj.forEach(function(s){ map[String(s.id)] = s; });
+        data.sj = (data.sj || []).map(function(s){ return map[String(s.id)] || s; });
+      }
+      return { data: data, stripped: stripped };
+    }
+
+    function saveData(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        scheduleCloudSync();
+        return true;
+      } catch (e) {
+        const name = (e && (e.name || e.code)) || '';
+        const isQuota = name === 'QuotaExceededError' || name === 22 || name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+          (String(e.message || e).toLowerCase().indexOf('quota') >= 0);
+        if (!isQuota) throw e;
+
+        // Coba kosongkan foto item lama lalu simpan ulang
+        const result = stripPhotosForQuota(data);
+        data = result.data;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          scheduleCloudSync();
+          if (typeof setSyncStatus === 'function') {
+            setSyncStatus('Penyimpanan penuh: foto lama dibersihkan agar data tersimpan', true);
+          }
+          return true;
+        } catch (e2) {
+          // Terakhir: simpan tanpa semua foto
+          const bare = {
+            history: (data.history || []).map(function(h) {
+              return Object.assign({}, h, { foto: null, foto_list: [] });
+            }),
+            stok: data.stok || [],
+            sj: (data.sj || []).map(function(s) {
+              return Object.assign({}, s, { foto: null, foto_list: [] });
+            })
+          };
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(bare));
+            scheduleCloudSync();
+            alert('Penyimpanan HP penuh. Data tersimpan tanpa foto. Hapus data lama / foto agar muat lagi.');
+            return true;
+          } catch (e3) {
+            alert('Penyimpanan HP penuh total. Tidak bisa simpan. Hapus sebagian History/SJ lama, atau clear data situs ini.');
+            throw e3;
+          }
+        }
+      }
+    }
+
+    function getToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
+    function getAuthUser() {
+      try { return JSON.parse(localStorage.getItem(AUTH_USER_KEY) || 'null'); } catch(e) { return null; }
+    }
+    function setAuthSession(token, user) {
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+      cloudEnabled = true;
+      updateAuthUI();
+    }
+    function clearAuthSession() {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(AUTH_USER_KEY);
+      cloudEnabled = false;
+      updateAuthUI();
+    }
+    function updateAuthUI() {
+      const user = getAuthUser();
+      const modal = document.getElementById('auth-modal');
+      const btnOut = document.getElementById('btn-logout');
+      const emailL = document.getElementById('user-email-label');
+      const nameL = document.getElementById('user-name-label');
+      if (user && getToken()) {
+        if (modal) modal.classList.add('hidden');
+        if (btnOut) btnOut.classList.remove('hidden');
+        if (emailL) emailL.textContent = user.email || '';
+        if (nameL) nameL.textContent = user.name || 'User';
+      } else {
+        if (modal) modal.classList.remove('hidden');
+        if (btnOut) btnOut.classList.add('hidden');
+        if (emailL) emailL.textContent = 'Powered by';
+        if (nameL) nameL.textContent = 'Amos rcpdroid ~86';
+      }
+    }
+    function setAuthTab(mode) {
+      authMode = mode === 'register' ? 'register' : 'login';
+      const loginBtn = document.getElementById('auth-tab-login');
+      const regBtn = document.getElementById('auth-tab-register');
+      const nameWrap = document.getElementById('auth-register-name-wrap');
+      const submit = document.getElementById('auth-submit');
+      if (authMode === 'register') {
+        loginBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700';
+        regBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white';
+        nameWrap.classList.remove('hidden');
+        submit.textContent = 'Daftar';
+      } else {
+        loginBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white';
+        regBtn.className = 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700';
+        nameWrap.classList.add('hidden');
+        submit.textContent = 'Masuk';
+      }
+      document.getElementById('auth-error').classList.add('hidden');
+    }
+    async function submitAuth() {
+      const email = (document.getElementById('auth-email').value || '').trim();
+      const password = document.getElementById('auth-password').value || '';
+      const name = (document.getElementById('auth-name').value || '').trim();
+      const err = document.getElementById('auth-error');
+      err.classList.add('hidden');
+      const btn = document.getElementById('auth-submit');
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+      try {
+        const path = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
+        const body = authMode === 'register' ? { email, password, name } : { email, password };
+        const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Gagal');
+        setAuthSession(data.token, data.user);
+        await pullCloudData(false);
+        loadHistory(); loadStok(); loadSj(); loadLaporan();
+      } catch (e) {
+        err.textContent = e.message || 'Gagal autentikasi';
+        err.classList.remove('hidden');
+      }
+      btn.disabled = false;
+      btn.textContent = authMode === 'register' ? 'Daftar' : 'Masuk';
+    }
+    function logoutCloud() {
+      if (!confirm('Keluar dari akun? Data lokal di HP ini tetap ada.')) return;
+      clearAuthSession();
+    }
+    function setSyncStatus(msg, isError) {
+      try {
+        let el = document.getElementById('sync-status-bar');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'sync-status-bar';
+          el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-h) + 8px + env(safe-area-inset-bottom));z-index:45;max-width:90%;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;box-shadow:0 4px 14px rgba(15,23,42,.15);pointer-events:none;transition:opacity .3s';
+          document.body.appendChild(el);
+        }
+        el.textContent = msg || '';
+        el.style.background = isError ? '#fef2f2' : '#ecfdf5';
+        el.style.color = isError ? '#b91c1c' : '#047857';
+        el.style.border = isError ? '1px solid #fecaca' : '1px solid #a7f3d0';
+        el.style.opacity = msg ? '1' : '0';
+        if (msg) {
+          clearTimeout(window.__syncStatusTimer);
+          window.__syncStatusTimer = setTimeout(function(){ el.style.opacity = '0'; }, isError ? 5000 : 2500);
+        }
+      } catch (e) {}
+    }
+
+    function itemTs(it) {
+      const t = Date.parse((it && (it.updated_at || it.created_at)) || 0);
+      return isNaN(t) ? 0 : t;
+    }
+
+    function mergeById(localArr, cloudArr) {
+      const map = {};
+      (cloudArr || []).forEach(function(it) {
+        if (it && it.id != null) map[String(it.id)] = it;
+      });
+      (localArr || []).forEach(function(it) {
+        if (!it || it.id == null) return;
+        const id = String(it.id);
+        const cur = map[id];
+        if (!cur || itemTs(it) >= itemTs(cur)) map[id] = it;
+      });
+      return Object.keys(map).map(function(k){ return map[k]; })
+        .sort(function(a,b){ return itemTs(b) - itemTs(a); });
+    }
+
+    function scheduleCloudSync() {
+      if (!getToken()) return;
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(function(){ pushCloudData(); }, 400);
+    }
+
+    async function pushCloudData() {
+      const token = getToken();
+      if (!token) return { ok: false, reason: 'no_token' };
+      try {
+        const data = getData();
+        const body = JSON.stringify({ history: data.history || [], stok: data.stok || [], sj: data.sj || [] });
+        if (body.length > 4500000) {
+          setSyncStatus('Sync gagal: data terlalu besar (kurangi foto)', true);
+          return { ok: false, reason: 'too_large' };
+        }
+        const res = await fetch('/api/sync', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: body
+        });
+        let j = {};
+        try { j = await res.json(); } catch (e) {}
+        if (res.status === 401) {
+          clearAuthSession();
+          setSyncStatus('Sesi login habis — login ulang', true);
+          return { ok: false, reason: 'auth' };
+        }
+        if (!res.ok || !j.success) {
+          setSyncStatus('Sync gagal: ' + ((j && j.message) || res.status), true);
+          return { ok: false, reason: 'server' };
+        }
+        setSyncStatus('Tersimpan ke cloud', false);
+        cloudEnabled = true;
+        return { ok: true };
+      } catch (e) {
+        console.warn('sync push gagal', e);
+        setSyncStatus('Sync gagal (offline?) — data aman di HP', true);
+        return { ok: false, reason: 'network' };
+      }
+    }
+
+    /** Merge aman: tidak menimpa lokal dengan cloud kosong/lama */
+    async function pullCloudData(preferCloud) {
+      const token = getToken();
+      if (!token) return false;
+      try {
+        const res = await fetch('/api/sync', { headers: { Authorization: 'Bearer ' + token } });
+        const j = await res.json();
+        if (!j.success) {
+          if (res.status === 401) clearAuthSession();
+          return false;
+        }
+        const cloud = j.data || { history: [], stok: [], sj: [] };
+        const local = getData();
+        const cloudCount = (cloud.history||[]).length + (cloud.stok||[]).length + (cloud.sj||[]).length;
+        const localCount = (local.history||[]).length + (local.stok||[]).length + (local.sj||[]).length;
+
+        // Merge per-item by id + updated_at (lokal tidak dibuang)
+        const merged = {
+          history: mergeById(local.history, cloud.history),
+          stok: mergeById(local.stok, cloud.stok),
+          sj: mergeById(local.sj, cloud.sj)
+        };
+
+        // Jika preferCloud tapi cloud kosong dan lokal ada isi → tetap pakai merge (jaga lokal)
+        if (preferCloud && cloudCount === 0 && localCount > 0) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
+          await pushCloudData();
+        } else {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          // Jika lokal punya item lebih baru / lebih banyak, push hasil merge ke cloud
+          const mergedCount = merged.history.length + merged.stok.length + merged.sj.length;
+          if (localCount > cloudCount || mergedCount > cloudCount) {
+            await pushCloudData();
+          }
+        }
+        cloudEnabled = true;
+        return true;
+      } catch (e) {
+        console.warn('sync pull gagal', e);
+        return false;
+      }
+    }
+    async function initAuth() {
+      const token = getToken();
+      if (!token) {
+        updateAuthUI();
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
+        const j = await res.json();
+        if (j.success && j.user) {
+          setAuthSession(token, j.user);
+          await pullCloudData(false);
+        } else {
+          clearAuthSession();
+        }
+      } catch (e) {
+        // offline: tetap pakai sesi lokal
+        cloudEnabled = !!token;
+        updateAuthUI();
+      }
+    }
+
+    function showTab(name) {
+      ['history','scan','cek','stok','sj','laporan'].forEach(t => {
+        const panel = document.getElementById('panel-' + t);
+        if (panel) panel.classList.toggle('hidden', t !== name);
+        const btn = document.getElementById('tab-' + t);
+        if (btn) btn.classList.toggle('active', t === name);
+      });
+      if (name === 'stok') loadStok();
+      if (name === 'sj') loadSj();
+      if (name === 'laporan') loadLaporan();
+      if (name !== 'scan') stopScan();
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) {}
+    }
+
+    function cleanResi(text) {
+      if (!text) return '';
+      let c = String(text).trim().toUpperCase();
+      const spx = c.match(/SPX[A-Z0-9]{8,}/i);
+      if (spx) return spx[0].toUpperCase();
+      const to = c.match(/TO[A-Z0-9]{6,}/i);
+      if (to) return to[0].toUpperCase();
+      return c.replace(/[^A-Z0-9\-]/g, '');
+    }
+
+
+    // ===== MULTI RESI + ANTI DUPLIKAT =====
+    let resiListData = [];
+    let scanMode = 'single'; // single | batch | stack
+    let lastBatchAccepted = '';
+    let lastBatchTime = 0;
+    const BATCH_COOLDOWN_MS = 1800; // hindari scan dobel sangat cepat pada label sama
+    // Stak receive: map resi -> { ok: boolean }
+    let stackReceiveMap = {}; // { RESI: true/false }
+    let stackReceiveOrder = [];
+    let stackExtra = []; // discan tapi tidak ada di daftar
+
+    function showScanToast(msg, type) {
+      const el = document.getElementById('scan-toast');
+      if (!el) return;
+      el.classList.remove('hidden', 'bg-green-50', 'text-green-800', 'border-green-200', 'bg-red-50', 'text-red-800', 'border-red-200', 'bg-yellow-50', 'text-yellow-900', 'border-yellow-200');
+      if (type === 'ok') el.classList.add('bg-green-50', 'text-green-800', 'border', 'border-green-200');
+      else if (type === 'dup') el.classList.add('bg-red-50', 'text-red-800', 'border', 'border-red-200');
+      else el.classList.add('bg-yellow-50', 'text-yellow-900', 'border', 'border-yellow-200');
+      el.textContent = msg;
+      clearTimeout(showScanToast._t);
+      showScanToast._t = setTimeout(() => el.classList.add('hidden'), 2500);
+    }
+
+    function setScanMode(mode) {
+      if (mode === 'batch') scanMode = 'batch';
+      else if (mode === 'stack') scanMode = 'stack';
+      else scanMode = 'single';
+      const styles = {
+        on: 'flex-1 py-2 rounded-xl text-xs font-semibold bg-orange-600 text-white',
+        off: 'flex-1 py-2 rounded-xl text-xs font-semibold bg-gray-200 text-gray-700'
+      };
+      const bSingle = document.getElementById('mode-single');
+      const bBatch = document.getElementById('mode-batch');
+      const bStack = document.getElementById('mode-stack');
+      if (bSingle) bSingle.className = scanMode === 'single' ? styles.on : styles.off;
+      if (bBatch) bBatch.className = scanMode === 'batch' ? styles.on : styles.off;
+      if (bStack) bStack.className = scanMode === 'stack' ? styles.on : styles.off;
+      const sp = document.getElementById('stack-panel');
+      if (sp) sp.classList.toggle('hidden', scanMode !== 'stack');
+      if (scanMode === 'stack') {
+        setTimeout(function() {
+          const pda = document.getElementById('pda-input');
+          if (pda) pda.focus();
+        }, 200);
+      }
+    }
+
+    function collectAllSavedResi(excludeId) {
+      const data = getData();
+      const map = {}; // resi -> { masalah, status, created_at, id }
+      (data.history || []).forEach(h => {
+        if (excludeId && h.id === excludeId) return;
+        const list = (h.resi_list && h.resi_list.length) ? h.resi_list : (h.resi ? [h.resi] : []);
+        list.forEach(raw => {
+          const r = cleanResi(raw);
+          if (!r) return;
+          if (!map[r]) map[r] = { masalah: h.masalah, status: h.status, created_at: h.created_at, id: h.id };
+        });
+      });
+      return map;
+    }
+
+    function findHistoryDup(resi, excludeId) {
+      const map = collectAllSavedResi(excludeId);
+      return map[cleanResi(resi)] || null;
+    }
+
+    function renderResiList() {
+      const box = document.getElementById('resi-list');
+      const multi = document.getElementById('resi-multi');
+      if (multi) multi.value = resiListData.join('|');
+      if (box) {
+        if (!resiListData.length) {
+          box.innerHTML = '<span class="text-[11px] text-gray-400">Belum ada resi ditambahkan</span>';
+        } else {
+          box.innerHTML = resiListData.map((r, i) =>
+            '<span class="inline-flex items-center gap-1 bg-orange-50 text-orange-800 text-xs font-mono px-2 py-1 rounded-lg border border-orange-100">' +
+            escapeHtml(r) +
+            ' <button type="button" onclick="hapusResiDariList(' + i + ')" class="text-red-500 font-bold leading-none">×</button></span>'
+          ).join('');
+        }
+      }
+      const num = document.getElementById('batch-count-num');
+      if (num) num.textContent = String(resiListData.length);
+      syncBatchPreview();
+    }
+
+    function syncBatchPreview() {
+      const chips = document.getElementById('batch-resi-chips');
+      if (!chips) return;
+      if (!resiListData.length) {
+        chips.innerHTML = '<span class="text-[11px] text-gray-400">Belum ada</span>';
+        return;
+      }
+      chips.innerHTML = resiListData.map((r, i) =>
+        '<span class="inline-flex items-center gap-1 bg-orange-50 text-orange-800 text-xs font-mono px-2 py-1 rounded-lg border border-orange-100">' +
+        escapeHtml(r) +
+        ' <button type="button" onclick="hapusResiDariList(' + i + ')" class="text-red-500 font-bold leading-none">×</button></span>'
+      ).join('');
+    }
+
+    /** @returns {'ok'|'invalid'|'dup_list'|'dup_history_cancel'} */
+    function tambahResiKeList(val, opts) {
+      opts = opts || {};
+      const silent = !!opts.silent;
+      const fromBatch = !!opts.fromBatch;
+      const input = document.getElementById('resi');
+      let r = cleanResi(val != null ? val : (input ? input.value : ''));
+      if (!r || r.length < 5) {
+        if (!silent && val == null) alert('Nomor resi belum valid');
+        if (fromBatch) showScanToast('Resi tidak valid', 'dup');
+        return 'invalid';
+      }
+
+      // Anti-duplikat level A: dalam form
+      if (resiListData.includes(r)) {
+        if (!silent && !fromBatch) alert('Resi sudah ada di daftar');
+        if (fromBatch) showScanToast('Duplikat di daftar: ' + r, 'dup');
+        if (input && val == null) input.value = '';
+        return 'dup_list';
+      }
+
+      // Anti-duplikat level B: history tersimpan (mode peringatan)
+      const excludeId = document.getElementById('edit-id') ? document.getElementById('edit-id').value : '';
+      const existed = findHistoryDup(r, excludeId || null);
+      if (existed) {
+        const tgl = formatDate(existed.created_at);
+        const msg = 'Resi ' + r + ' sudah ada di history.\\n\\nMasalah: ' + (existed.masalah || '-') +
+          '\\nStatus: ' + (existed.status || '-') + '\\nTanggal: ' + tgl + '\\n\\nTetap tambahkan?';
+        if (!confirm(msg)) {
+          if (fromBatch) showScanToast('Dilewati (sudah di history): ' + r, 'dup');
+          if (input && val == null) input.value = '';
+          return 'dup_history_cancel';
+        }
+      }
+
+      resiListData.push(r);
+      if (input) input.value = '';
+      renderResiList();
+      if (fromBatch) showScanToast('+' + r + ' (' + resiListData.length + ' resi)', 'ok');
+      return 'ok';
+    }
+
+    function hapusResiDariList(i) {
+      resiListData.splice(i, 1);
+      renderResiList();
+    }
+
+    function setResiListFromItem(item) {
+      if (Array.isArray(item.resi_list) && item.resi_list.length) {
+        resiListData = item.resi_list.map(cleanResi).filter(Boolean);
+      } else if (item.resi) {
+        resiListData = String(item.resi).split(/[|,;\\n]+/).map(cleanResi).filter(Boolean);
+      } else {
+        resiListData = [];
+      }
+      renderResiList();
+    }
+
+
+    // ===== TRACK API (via Cloudflare Worker) =====
+    async function trackResi(resi, courier) {
+      resi = cleanResi(resi);
+      courier = (courier || 'spx').toLowerCase();
+      if (!resi || resi.length < 6) throw new Error('Nomor resi tidak valid');
+      const url = API_TRACK + '?resi=' + encodeURIComponent(resi) + '&courier=' + encodeURIComponent(courier);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }
+
+    function formatTrackResult(json) {
+      if (!json) return '<p class="text-red-600 text-sm">Tidak ada respons</p>';
+      if (!json.success) {
+        let html = '<div class="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">';
+        html += '<p class="font-medium">' + escapeHtml(json.message || 'Gagal') + '</p>';
+        if (json.officialUrl) html += '<a href="' + json.officialUrl + '" target="_blank" class="underline text-xs mt-1 inline-block">Buka situs resmi</a>';
+        html += '</div>';
+        return html;
+      }
+
+      // Struktur SPX dari worker: { success, courier, resi, data }
+      // data biasanya response mentah SPX atau hasil BinderByte
+      const root = json.data || {};
+      const inner = root.data || root; // SPX: data.data
+      const detail = root.detail || {};
+      const summary = root.summary || {};
+
+      // tracking_list order tracking
+      let list = inner.tracking_list || root.tracking_list || inner.sls_tracking_list || [];
+      if (!Array.isArray(list)) list = [];
+      if (!list.length && Array.isArray(root.history)) list = root.history;
+      if (!list.length && Array.isArray(detail.history)) list = detail.history;
+      if (!list.length && Array.isArray(summary.history)) list = summary.history;
+
+      const status = inner.status || inner.current_status || detail.status || summary.status || root.status || 'Ditemukan';
+      const courierName = (json.courier || 'spx').toUpperCase();
+      const resi = json.resi || '';
+      const recipient = inner.recipient_name || detail.receiver || detail.consignee || summary.receiver || '';
+      const phone = inner.phone || detail.phone || '';
+      const deliveryType = inner.delivery_type || detail.service || summary.service || '';
+      const dest = detail.destination || summary.destination || inner.destination || '';
+      const origin = detail.origin || summary.origin || inner.origin || '';
+
+      function box(title, value) {
+        if (!value) return '';
+        return '<div class="bg-gray-50 rounded-xl px-3 py-2 mb-2"><p class="text-[10px] text-gray-400">' + title + '</p><p class="text-sm font-semibold text-gray-800 break-all">' + escapeHtml(String(value)) + '</p></div>';
+      }
+
+      let html = '<div class="border border-green-200 bg-white rounded-xl p-3 text-sm">';
+      html += box('Kurir', courierName);
+      html += box('Nomor Resi', resi);
+      html += box('Status Terakhir', status);
+      html += box('Layanan', deliveryType);
+      html += box('Asal', origin);
+      html += box('Tujuan', dest);
+      html += box('Penerima', recipient);
+      html += box('Telepon', phone);
+
+      if (!dest && !recipient && courierName === 'SPX') {
+        html += '<div class="bg-gray-50 rounded-xl px-3 py-2 mb-2"><p class="text-[10px] text-gray-400">Tujuan / Penerima</p><p class="text-xs text-gray-500">Tidak tersedia di API publik SPX. Cek di WMS internal jika perlu.</p></div>';
+      }
+
+      if (list.length) {
+        html += '<div class="mt-3"><p class="font-semibold text-gray-800 text-sm mb-2">📋 Riwayat Perjalanan</p>';
+        html += '<div class="max-h-72 overflow-y-auto pr-1">';
+        list.forEach(function(item) {
+          let time = '-';
+          if (item.timestamp) {
+            const ts = Number(item.timestamp);
+            // SPX sering unix detik
+            time = new Date(ts < 1e12 ? ts * 1000 : ts).toLocaleString('id-ID');
+          } else if (item.time || item.date || item.mtime || item.event_time) {
+            time = String(item.time || item.date || item.mtime || item.event_time);
+          }
+          const msg = item.message || item.status || item.description || item.desc || item.content || '-';
+          html += '<div class="timeline-item mb-1">';
+          html += '<p class="text-[11px] text-gray-400">' + escapeHtml(time) + '</p>';
+          html += '<p class="text-xs text-gray-800 leading-snug">' + escapeHtml(String(msg)) + '</p>';
+          html += '</div>';
+        });
+        html += '</div></div>';
+      } else {
+        html += '<p class="text-xs text-gray-400 mt-2">Tidak ada detail riwayat perjalanan dari API.</p>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    async function trackResiUI() {
+      const resi = document.getElementById('cek-resi').value.trim();
+      const courier = document.getElementById('cek-courier').value;
+      const box = document.getElementById('cek-result');
+      const btn = document.getElementById('btn-track');
+      if (!resi) return alert('Masukkan nomor resi');
+      btn.disabled = true;
+      btn.textContent = 'Mengecek...';
+      box.classList.remove('hidden');
+      box.innerHTML = '<p class="text-sm text-gray-500">⏳ Mengambil data...</p>';
+      try {
+        const json = await trackResi(resi, courier);
+        box.innerHTML = formatTrackResult(json);
+        if (json.success) {
+          lastSpxStatus = extractStatusText(json);
+        }
+      } catch (e) {
+        box.innerHTML = '<p class="text-red-600 text-sm">Error: ' + escapeHtml(e.message) + '</p>';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Cek Sekarang';
+    }
+
+    function extractStatusText(json) {
+      try {
+        const d = json.data || {};
+        const detail = d.detail || {};
+        const summary = d.summary || {};
+        return detail.status || summary.status || d.status || 'OK';
+      } catch(e) { return 'OK'; }
+    }
+
+    async function cekResiDariForm() {
+      let resi = cleanResi(document.getElementById('resi').value.trim());
+      if (!resi && resiListData.length) resi = resiListData[resiListData.length - 1];
+      if (!resi) return alert('Isi nomor resi dulu');
+      const info = document.getElementById('spx-info');
+      info.classList.remove('hidden');
+      info.innerHTML = '⏳ Mengecek SPX via server...';
+      lastSpxStatus = '';
+      try {
+        const courier = resi.toUpperCase().startsWith('SPX') || resi.toUpperCase().startsWith('TO') ? 'spx' : 'auto';
+        const json = await trackResi(resi, courier);
+        if (json.success) {
+          lastSpxStatus = extractStatusText(json);
+          info.innerHTML = formatTrackResult(json);
+          info.dataset.status = lastSpxStatus;
+          if (!document.getElementById('keterangan').value) {
+            document.getElementById('keterangan').value = 'SPX: ' + lastSpxStatus;
+          }
+        } else {
+          info.innerHTML = formatTrackResult(json);
+          info.dataset.status = '';
+        }
+      } catch (e) {
+        info.innerHTML = '⚠️ ' + escapeHtml(e.message) + '<br><a href="https://spx.co.id/" target="_blank" class="underline text-orange-600">Buka SPX resmi</a>';
+      }
+    }
+
+    async function cekResiScanned() {
+      if (!lastScanned) return;
+      document.getElementById('cek-resi').value = lastScanned;
+      document.getElementById('cek-courier').value = 'spx';
+      showTab('cek');
+      trackResiUI();
+    }
+
+    // ===== FOTO =====
+    const MAX_FOTO = 3;
+    let fotoListData = [];
+    let sjFotoListData = [];
+
+    const TS_PHOTO_KEY = 'dc_siborong_ts_photo';
+    function isTimestampPhotoEnabled() {
+      const el = document.getElementById('ts-photo-toggle');
+      if (el) return !!el.checked;
+      return localStorage.getItem(TS_PHOTO_KEY) !== '0';
+    }
+    function setTimestampPhotoEnabled(on) {
+      localStorage.setItem(TS_PHOTO_KEY, on ? '1' : '0');
+      const el = document.getElementById('ts-photo-toggle');
+      if (el) el.checked = !!on;
+    }
+    function formatPhotoTimestamp(d) {
+      d = d || new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() +
+        ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+    function drawTimestampOnCanvas(canvas) {
+      if (!isTimestampPhotoEnabled()) return;
+      const ctx = canvas.getContext('2d');
+      const text = 'DC Siborong · ' + formatPhotoTimestamp();
+      const padX = 8, padY = 6;
+      const fontSize = Math.max(12, Math.round(canvas.width * 0.035));
+      ctx.font = 'bold ' + fontSize + 'px system-ui, sans-serif';
+      ctx.textBaseline = 'bottom';
+      const metrics = ctx.measureText(text);
+      const boxW = metrics.width + padX * 2;
+      const boxH = fontSize + padY * 2;
+      const x = 8;
+      const y = canvas.height - 8;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x, y - boxH, boxW, boxH);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(text, x + padX, y - padY);
+    }
+    function compressImageFile(file) {
+      return new Promise((resolve, reject) => {
+        if (!file || !file.type.startsWith('image/')) return reject(new Error('bukan gambar'));
+        if (file.size > 6 * 1024 * 1024) return reject(new Error('file terlalu besar'));
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            // Kompres ketat agar history/sync tidak membengkak; stempel tetap terbaca
+            const maxW = 480;
+            const scale = Math.min(1, maxW / img.width);
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            drawTimestampOnCanvas(canvas);
+            resolve(canvas.toDataURL('image/jpeg', 0.5));
+          };
+          img.onerror = () => reject(new Error('gagal baca gambar'));
+          img.src = ev.target.result;
+        };
+        reader.onerror = () => reject(new Error('gagal baca file'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderFotoList() {
+      const box = document.getElementById('foto-preview-list');
+      if (!box) return;
+      if (!fotoListData.length) {
+        box.innerHTML = '';
+        return;
+      }
+      box.innerHTML = fotoListData.map((src, i) =>
+        '<div class="relative inline-block">' +
+        '<img src="' + src + '" class="photo-preview" onclick="openLightbox(this.src)" />' +
+        '<button type="button" onclick="hapusFotoIndex(' + i + ')" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs leading-5">×</button>' +
+        '</div>'
+      ).join('');
+    }
+
+    async function handleFoto(e) {
+      const files = Array.from(e.target.files || []);
+      e.target.value = '';
+      if (!files.length) return;
+      for (const file of files) {
+        if (fotoListData.length >= MAX_FOTO) {
+          alert('Maksimal ' + MAX_FOTO + ' foto');
+          break;
+        }
+        try {
+          const dataUrl = await compressImageFile(file);
+          fotoListData.push(dataUrl);
+        } catch (err) {
+          alert('Gagal proses foto: ' + (err.message || err));
+        }
+      }
+      renderFotoList();
+    }
+    function hapusFotoIndex(i) {
+      fotoListData.splice(i, 1);
+      renderFotoList();
+    }
+    function hapusFoto() {
+      fotoListData = [];
+      renderFotoList();
+      const cam = document.getElementById('foto-input-cam');
+      const gal = document.getElementById('foto-input-gal');
+      if (cam) cam.value = '';
+      if (gal) gal.value = '';
+    }
+
+    function renderSjFotoList() {
+      const box = document.getElementById('sj-foto-preview-list');
+      if (!box) return;
+      if (!sjFotoListData.length) {
+        box.innerHTML = '';
+        return;
+      }
+      box.innerHTML = sjFotoListData.map((src, i) =>
+        '<div class="relative inline-block">' +
+        '<img src="' + src + '" class="photo-preview" onclick="openLightbox(this.src)" />' +
+        '<button type="button" onclick="hapusSjFotoIndex(' + i + ')" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs leading-5">×</button>' +
+        '</div>'
+      ).join('');
+    }
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.add('show');
+    }
+    function closeLightbox(e) {
+      if (e) e.stopPropagation();
+      document.getElementById('lightbox').classList.remove('show');
+      document.getElementById('lightbox-img').src = '';
+    }
+
+    // ===== HISTORY =====
+    function clearDateFilter() {
+      document.getElementById('filter-date-from').value = '';
+      document.getElementById('filter-date-to').value = '';
+      loadHistory();
+    }
+    
+    function buildHistoryShareText(item) {
+      const resis = (item.resi_list && item.resi_list.length) ? item.resi_list : (item.resi ? [item.resi] : []);
+      const lines = [
+        '*DC Siborong — Laporan Masalah*',
+        '',
+        'Jenis: ' + (item.masalah || '-'),
+        'Status: ' + (item.status || '-'),
+        'Jumlah resi: ' + resis.length,
+        'Resi:',
+        resis.map(function(r){ return '- ' + r; }).join('\n') || '-',
+        item.keterangan ? ('Keterangan: ' + item.keterangan) : '',
+        item.spx_status ? ('SPX: ' + item.spx_status) : '',
+        'Waktu: ' + (item.created_at ? formatDate(item.created_at) : '-'),
+        '',
+        '_Dikirim dari app DC Siborong Borong_'
+      ];
+      return lines.filter(function(x){ return x !== ''; }).join('\n');
+    }
+
+    function buildSjShareText(item) {
+      const lines = [
+        '*DC Siborong — Surat Jalan*',
+        '',
+        'No. LT: ' + (item.lt || '-'),
+        'Berat: ' + (item.berat != null ? item.berat + ' kg' : '-'),
+        'Jumlah: ' + (item.jumlah != null ? item.jumlah : '-'),
+        'High Value: ' + (item.high_value || 'Tidak') + (item.hv_nilai ? (' (' + item.hv_nilai + ')') : ''),
+        'Tujuan: ' + (item.tujuan || '-'),
+        'Waktu: ' + (item.created_at ? formatDate(item.created_at) : '-'),
+        '',
+        '_Dikirim dari app DC Siborong Borong_'
+      ];
+      return lines.join('\n');
+    }
+
+    async function shareText(text, title) {
+      title = title || 'DC Siborong';
+      // 1) Web Share API (WhatsApp, Email, dll di HP)
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: title, text: text });
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;
+        }
+      }
+      // 2) Sheet pilihan
+      openShareSheet(text, title);
+    }
+
+    function openShareSheet(text, title) {
+      let sheet = document.getElementById('share-sheet');
+      if (!sheet) {
+        sheet = document.createElement('div');
+        sheet.id = 'share-sheet';
+        sheet.innerHTML = `
+          <div id="share-sheet-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:120;display:flex;align-items:flex-end;justify-content:center;">
+            <div style="width:100%;max-width:480px;background:#fff;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));">
+              <p style="margin:0 0 12px;font-weight:700;font-size:14px;color:#9a3412;">Bagikan</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <button type="button" id="share-wa" style="padding:12px;border:none;border-radius:12px;background:#dcfce7;color:#166534;font-weight:700;font-size:13px;">WhatsApp</button>
+                <button type="button" id="share-email" style="padding:12px;border:none;border-radius:12px;background:#ffedd5;color:#c2410c;font-weight:700;font-size:13px;">Email</button>
+                <button type="button" id="share-copy" style="padding:12px;border:none;border-radius:12px;background:#f1f5f9;color:#334155;font-weight:700;font-size:13px;">Salin Teks</button>
+                <button type="button" id="share-close" style="padding:12px;border:none;border-radius:12px;background:#fee2e2;color:#b91c1c;font-weight:700;font-size:13px;">Tutup</button>
+              </div>
+            </div>
+          </div>`;
+        document.body.appendChild(sheet);
+      }
+      sheet.style.display = 'block';
+      const wa = 'https://wa.me/?text=' + encodeURIComponent(text);
+      const mail = 'mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(text);
+      document.getElementById('share-wa').onclick = function(){ window.open(wa, '_blank'); sheet.style.display = 'none'; };
+      document.getElementById('share-email').onclick = function(){ window.location.href = mail; sheet.style.display = 'none'; };
+      document.getElementById('share-copy').onclick = async function(){
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+          else prompt('Salin teks:', text);
+          alert('Teks disalin');
+        } catch (e) { prompt('Salin teks:', text); }
+        sheet.style.display = 'none';
+      };
+      document.getElementById('share-close').onclick = function(){ sheet.style.display = 'none'; };
+      document.getElementById('share-sheet-bg').onclick = function(ev){ if (ev.target.id === 'share-sheet-bg') sheet.style.display = 'none'; };
+    }
+
+    function shareHistory(id) {
+      const data = getData();
+      const item = (data.history || []).find(function(h){ return h.id === id; });
+      if (!item) { alert('Data tidak ditemukan'); return; }
+      shareText(buildHistoryShareText(item), 'Laporan Masalah — ' + (item.masalah || 'DC Siborong'));
+    }
+
+    function shareSj(id) {
+      const data = getData();
+      const item = (data.sj || []).find(function(s){ return s.id === id; });
+      if (!item) { alert('Data tidak ditemukan'); return; }
+      shareText(buildSjShareText(item), 'Surat Jalan — ' + (item.lt || 'LT'));
+    }
+
+
+    function loadHistory() {
+      const data = getData();
+      const q = (document.getElementById('search').value || '').toLowerCase();
+      const status = document.getElementById('filter-status').value;
+      const dateFrom = document.getElementById('filter-date-from').value;
+      const dateTo = document.getElementById('filter-date-to').value;
+      let list = data.history || [];
+      if (status && status !== 'semua') list = list.filter(h => h.status === status);
+      if (q) list = list.filter(h => {
+        const arr = (h.resi_list && h.resi_list.length) ? h.resi_list.map(String) : (h.resi ? [String(h.resi)] : []);
+        const resis = arr.join(' ');
+        const qClean = q.replace(/\s+/g, '');
+        // Cocok penuh / sebagian, atau 4 huruf terakhir resi
+        const matchResi = arr.some(function(r) {
+          const rr = r.toLowerCase();
+          if (rr.includes(q) || rr.includes(qClean)) return true;
+          const tail = rr.slice(-4);
+          if (qClean.length >= 3 && (tail.includes(qClean) || qClean.includes(tail) || rr.endsWith(qClean))) return true;
+          if (qClean.length === 4 && tail === qClean) return true;
+          return false;
+        });
+        return matchResi || (h.masalah||'').toLowerCase().includes(q) || (h.keterangan||'').toLowerCase().includes(q);
+      });
+      if (dateFrom) {
+        const from = new Date(dateFrom + 'T00:00:00');
+        list = list.filter(h => new Date(h.created_at) >= from);
+      }
+      if (dateTo) {
+        const to = new Date(dateTo + 'T23:59:59');
+        list = list.filter(h => new Date(h.created_at) <= to);
+      }
+      list = list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      const container = document.getElementById('history-list');
+      if (!list.length) {
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Belum ada data history</p>';
+        return;
+      }
+      
+    function getItemResiList(item) {
+      if (item.resi_list && item.resi_list.length) return item.resi_list.map(String);
+      if (item.resi) return [String(item.resi)];
+      return [];
+    }
+
+    function highlightText(text, q) {
+      const s = escapeHtml(text || '');
+      if (!q) return s;
+      const qq = escapeHtml(q);
+      try {
+        const re = new RegExp('(' + qq.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+        return s.replace(re, '<mark>$1</mark>');
+      } catch (e) {
+        return s;
+      }
+    }
+
+    function renderResiBlock(item, q) {
+      const list = getItemResiList(item);
+      const id = item.id;
+      if (!list.length) return '<p class="text-xs text-gray-400">Tanpa nomor resi</p>';
+
+      const qLower = (q || '').toLowerCase();
+      const hits = qLower ? list.filter(r => {
+        const rl = r.toLowerCase();
+        return rl.includes(qLower) || rl.slice(-4) === qLower || (qLower.length >= 3 && rl.endsWith(qLower));
+      }) : [];
+      const compactLimit = 3;
+
+      // Jika sedang search dan ada hit, prioritaskan tampilkan yang cocok dulu
+      let ordered = list.slice();
+      if (hits.length) {
+        const hitSet = new Set(hits.map(h => h.toLowerCase()));
+        ordered = list.filter(r => hitSet.has(r.toLowerCase())).concat(list.filter(r => !hitSet.has(r.toLowerCase())));
+      }
+
+      const needCollapse = ordered.length > compactLimit;
+      const head = ordered.slice(0, compactLimit);
+      const restCount = ordered.length - compactLimit;
+
+      const headLine = head.map(r => highlightText(r, q)).join(', ');
+      const moreLabel = restCount > 0 ? ' <span class="text-orange-600 font-semibold">+' + restCount + ' lainnya</span>' : '';
+
+      let hitBadge = '';
+      if (q && hits.length) {
+        hitBadge = '<span class="text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2 py-0.5">Cocok: ' + hits.length + ' resi</span>';
+      }
+
+      const chipsAll = ordered.map(r => {
+        const rl = r.toLowerCase();
+        const isHit = qLower && (rl.includes(qLower) || rl.slice(-4) === qLower || (qLower.length >= 3 && rl.endsWith(qLower)));
+        return '<span class="resi-chip' + (isHit ? ' hit' : '') + '">' + highlightText(r, q) + (isHit ? ' ✓' : '') + '</span>';
+      }).join('');
+
+      return (
+        '<div class="resi-block" data-resi-id="' + escapeHtml(id) + '">' +
+          '<div class="flex flex-wrap items-center gap-1.5 mb-0.5">' +
+            '<p class="resi-compact-line resi-summary">' + headLine + moreLabel + '</p>' +
+            hitBadge +
+          '</div>' +
+          (needCollapse || hits.length
+            ? '<div class="hidden resi-expanded flex flex-wrap gap-1.5 mt-1.5 max-h-28 overflow-y-auto">' + chipsAll + '</div>' +
+              '<div class="flex gap-2 mt-1">' +
+                '<button type="button" class="resi-more-btn" onclick="toggleResiExpand(\'' + escapeHtml(id) + '\')">' + (needCollapse ? 'Lihat semua (' + ordered.length + ')' : 'Tampil chip') + '</button>' +
+                '<button type="button" class="resi-more-btn" onclick="copyResiList(\'' + escapeHtml(id) + '\')">Salin resi</button>' +
+              '</div>'
+            : '<button type="button" class="resi-more-btn mt-0.5" onclick="copyResiList(\'' + escapeHtml(id) + '\')">Salin resi</button>') +
+        '</div>'
+      );
+    }
+
+    window.toggleResiExpand = function(id) {
+      const block = document.querySelector('.resi-block[data-resi-id="' + id + '"]');
+      if (!block) return;
+      const exp = block.querySelector('.resi-expanded');
+      const btn = block.querySelector('.resi-more-btn');
+      if (!exp) return;
+      const open = exp.classList.toggle('hidden') === false;
+      if (btn) btn.textContent = open ? 'Sembunyikan' : ('Lihat semua');
+    };
+
+    window.copyResiList = function(id) {
+      const data = getData();
+      const item = (data.history || []).find(h => h.id === id);
+      if (!item) return;
+      const list = getItemResiList(item);
+      const text = list.join('\\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => alert('Berhasil salin ' + list.length + ' resi')).catch(() => prompt('Salin resi:', list.join(', ')));
+      } else {
+        prompt('Salin resi:', list.join(', '));
+      }
+    };
+
+
+      const qRaw = (document.getElementById('search').value || '').trim();
+      container.innerHTML = list.map(item => {
+        const resiList = getItemResiList(item);
+        const count = resiList.length;
+        return `
+        <div class="card">
+          <div class="flex justify-between items-start gap-2 mb-1">
+            <div class="min-w-0 flex-1">
+              <p class="text-xs text-gray-500 mb-0.5">${escapeHtml(item.masalah || '-')}${count > 1 ? ' · <span class="text-orange-600 font-semibold">' + count + ' resi</span>' : ''}</p>
+              ${renderResiBlock(item, qRaw)}
+            </div>
+            <span class="badge-${item.status} px-2.5 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap">${item.status}</span>
+          </div>
+          ${item.keterangan ? '<p class="text-xs text-gray-600 mb-1">' + escapeHtml(item.keterangan) + '</p>' : ''}
+          ${item.spx_status ? '<p class="text-[11px] text-orange-600 mb-1">SPX: ' + escapeHtml(item.spx_status) + '</p>' : ''}
+          ${(function(){ const photos = (item.foto_list && item.foto_list.length) ? item.foto_list : (item.foto ? [item.foto] : []); if (!photos.length) return ''; return '<div class="flex flex-wrap gap-1.5 mt-2 mb-1">' + photos.map(function(src){ return '<img src="' + src + '" class="photo-preview" onclick="openLightbox(this.src)" />'; }).join('') + '</div>'; })()}
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
+            <div class="flex gap-3">
+              <button onclick="shareHistory('${item.id}')" class="text-emerald-700 text-xs font-medium">Bagikan</button>
+              <button onclick='requirePin(() => editHistory(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
+              <button onclick="requirePin(() => deleteHistory('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
+            </div>
+          </div>
+        </div>
+      `;
+      }).join('');
+    }
+
+    document.getElementById('form-history').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = getData();
+      const id = document.getElementById('edit-id').value;
+      // pastikan resi di input ikut masuk jika belum ditekan +
+      tambahResiKeList();
+      if (!resiListData.length) {
+        alert('Tambahkan minimal 1 nomor resi');
+        return;
+      }
+      const payload = {
+        resi: resiListData[0],
+        resi_list: resiListData.slice(),
+        resi_count: resiListData.length,
+        masalah: document.getElementById('masalah').value,
+        status: document.getElementById('status').value,
+        keterangan: document.getElementById('keterangan').value.trim(),
+        foto: fotoListData[0] || null,
+        foto_list: fotoListData.slice(),
+        spx_status: lastSpxStatus || document.getElementById('spx-info').dataset.status || null
+      };
+      if (id) {
+        const idx = data.history.findIndex(h => h.id === id);
+        if (idx !== -1) data.history[idx] = { ...data.history[idx], ...payload, updated_at: new Date().toISOString() };
+      } else {
+        data.history.push({ id: Date.now().toString(), ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      }
+      saveData(data);
+      resetForm();
+      loadHistory();
+      showTab('history');
+      // Push segera ke cloud (jangan hanya andalkan debounce)
+      if (getToken()) {
+        setSyncStatus('Menyimpan ke cloud...', false);
+        pushCloudData();
+      } else {
+        setSyncStatus('Tersimpan di HP (belum login cloud)', false);
+      }
+    });
+
+    function editHistory(item) {
+      document.getElementById('edit-id').value = item.id;
+      setResiListFromItem(item);
+      document.getElementById('resi').value = '';
+      document.getElementById('masalah').value = item.masalah;
+      document.getElementById('status').value = item.status;
+      document.getElementById('keterangan').value = item.keterangan || '';
+      lastSpxStatus = item.spx_status || '';
+      if (Array.isArray(item.foto_list) && item.foto_list.length) {
+        fotoListData = item.foto_list.slice();
+      } else if (item.foto) {
+        fotoListData = [item.foto];
+      } else {
+        fotoListData = [];
+      }
+      renderFotoList();
+      document.getElementById('form-title').textContent = 'Edit History';
+      document.getElementById('btn-batal').classList.remove('hidden');
+      showTab('history');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function resetForm() {
+      document.getElementById('form-history').reset();
+      document.getElementById('edit-id').value = '';
+      document.getElementById('form-title').textContent = '+ Tambah History Baru';
+      document.getElementById('btn-batal').classList.add('hidden');
+      document.getElementById('spx-info').classList.add('hidden');
+      lastSpxStatus = '';
+      resiListData = [];
+      renderResiList();
+      hapusFoto();
+    }
+    function deleteHistory(id) {
+      if (!confirm('Yakin hapus data ini?')) return;
+      const data = getData();
+      data.history = data.history.filter(h => h.id !== id);
+      saveData(data);
+      loadHistory();
+    }
+
+    // ===== SCAN =====
+    
+    function notifyScanFeedback(ok, msg) {
+      try {
+        if (navigator.vibrate) navigator.vibrate(ok ? [40, 40, 40] : [120, 60, 120]);
+      } catch (e) {}
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+          const ctx = new Ctx();
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = ok ? 880 : 220;
+          g.gain.value = 0.05;
+          o.start();
+          setTimeout(function(){ o.stop(); ctx.close(); }, ok ? 120 : 250);
+        }
+      } catch (e) {}
+      if (typeof showScanToast === 'function') showScanToast(msg, ok ? 'ok' : 'dup');
+    }
+
+    let pdaAutoTimer = null;
+    let pdaLastLen = 0;
+
+    function pdaCommit(raw) {
+      const el = document.getElementById('pda-input');
+      const r = cleanResi(raw || (el ? el.value : ''));
+      if (el) el.value = '';
+      pdaLastLen = 0;
+      if (!r || r.length < 5) return;
+      handleIncomingScan(r, 'pda');
+      // jaga fokus agar tembakan berikutnya langsung masuk
+      setTimeout(function() {
+        if (el) { try { el.focus(); } catch (e) {} }
+      }, 50);
+    }
+
+    function pdaInputAuto(e) {
+      const el = e.target || document.getElementById('pda-input');
+      if (!el) return;
+      const v = el.value || '';
+      // Scanner mengetik sangat cepat; commit setelah jeda singkat tanpa Enter
+      if (pdaAutoTimer) clearTimeout(pdaAutoTimer);
+      pdaLastLen = v.length;
+      // Resi umum SPX/TO sering 10–20+ karakter; commit saat jeda 80ms setelah ketikan berhenti
+      pdaAutoTimer = setTimeout(function() {
+        const cur = (el.value || '').trim();
+        if (cur.length >= 5) pdaCommit(cur);
+      }, 80);
+    }
+
+    function pdaInputKey(e) {
+      // Enter/Tab tetap didukung jika PDA mengirimnya, tapi tidak wajib
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        if (pdaAutoTimer) clearTimeout(pdaAutoTimer);
+        const el = document.getElementById('pda-input');
+        pdaCommit(el ? el.value : '');
+      }
+    }
+
+    
+    function extractResiFromText(text) {
+      const raw = String(text || '');
+      const found = [];
+      const seen = {};
+      // SPX / TO style + generic long tokens
+      const re = /\b(?:SPX[A-Z0-9]{8,}|TO[A-Z0-9]{6,}|[A-Z]{2,5}[A-Z0-9]{8,})\b/gi;
+      let m;
+      while ((m = re.exec(raw)) !== null) {
+        const r = cleanResi(m[0]);
+        if (r && r.length >= 8 && !seen[r]) { seen[r] = true; found.push(r); }
+      }
+      // fallback: split lines/commas
+      if (!found.length) {
+        raw.split(/[\s,;|]+/).forEach(function(x) {
+          const r = cleanResi(x);
+          if (r && r.length >= 8 && !seen[r]) { seen[r] = true; found.push(r); }
+        });
+      }
+      return found;
+    }
+
+    function applyStackImport(list, label) {
+      const uniq = [];
+      const seen = {};
+      (list || []).forEach(function(p) {
+        const r = cleanResi(p);
+        if (r && r.length >= 5 && !seen[r]) { seen[r] = true; uniq.push(r); }
+      });
+      const ta = document.getElementById('stack-source');
+      if (ta) ta.value = uniq.join('\n');
+      const info = document.getElementById('stack-import-info');
+      if (info) {
+        info.classList.remove('hidden');
+        info.textContent = (label || 'Import') + ': ' + uniq.length + ' resi terdeteksi. Tekan Muat Daftar.';
+      }
+      if (uniq.length) {
+        loadStackList();
+      } else {
+        alert('Tidak ada nomor resi yang terdeteksi di file.');
+      }
+    }
+
+    
+        let tesseractLoading = null;
+    async function ensureTesseract() {
+      if (window.Tesseract) return window.Tesseract;
+      if (tesseractLoading) return tesseractLoading;
+      tesseractLoading = new Promise(function(resolve, reject) {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.onload = function(){ resolve(window.Tesseract); };
+        s.onerror = function(){ tesseractLoading = null; reject(new Error('Gagal muat OCR')); };
+        document.head.appendChild(s);
+      });
+      return tesseractLoading;
+    }
+
+    /** Praproses foto: grayscale, naikkontras, binerisasi ringan, skala lebih besar */
+    function preprocessImageForOcr(file) {
+      return new Promise(function(resolve, reject) {
+        const reader = new FileReader();
+        reader.onerror = function(){ reject(new Error('Gagal baca foto')); };
+        reader.onload = function() {
+          const img = new Image();
+          img.onerror = function(){ reject(new Error('Gagal decode foto')); };
+          img.onload = function() {
+            try {
+              let w = img.width;
+              let h = img.height;
+              // skala agar lebar minimal 1400px (OCR lebih akurat)
+              const minW = 1400;
+              if (w < minW) {
+                const scale = minW / w;
+                w = Math.round(w * scale);
+                h = Math.round(h * scale);
+              }
+              // batasi terlalu besar agar tidak berat di HP
+              const maxW = 2400;
+              if (w > maxW) {
+                const scale = maxW / w;
+                w = Math.round(w * scale);
+                h = Math.round(h * scale);
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, w, h);
+              const imageData = ctx.getImageData(0, 0, w, h);
+              const d = imageData.data;
+              // grayscale + contrast stretch
+              let min = 255, max = 0;
+              for (let i = 0; i < d.length; i += 4) {
+                const g = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114);
+                if (g < min) min = g;
+                if (g > max) max = g;
+                d[i] = d[i+1] = d[i+2] = g;
+              }
+              const range = Math.max(1, max - min);
+              for (let i = 0; i < d.length; i += 4) {
+                let g = (d[i] - min) / range * 255;
+                // naikkan kontras
+                g = (g - 128) * 1.35 + 128;
+                // adaptive-ish threshold (global Otsu sederhana via midpoint)
+                // soft binarize: dark text -> black, light -> white
+                if (g > 150) g = 255;
+                else if (g < 110) g = 0;
+                else g = g < 130 ? 0 : 255;
+                d[i] = d[i+1] = d[i+2] = g;
+                d[i+3] = 255;
+              }
+              ctx.putImageData(imageData, 0, 0);
+              canvas.toBlob(function(blob) {
+                if (!blob) return reject(new Error('Gagal proses gambar'));
+                resolve(blob);
+              }, 'image/png');
+            } catch (err) {
+              reject(err);
+            }
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function extractResiFromOcrText(text) {
+      const raw = String(text || '').toUpperCase();
+      // normalisasi OCR umum: O/0, I/1, S/5 di konteks resi
+      const normalized = raw
+        .replace(/[|]/g, 'I')
+        .replace(/[^A-Z0-9\\s\\n]/g, ' ');
+      let list = extractResiFromText(normalized);
+      // pola tambahan untuk token panjang
+      const tokens = normalized.match(/[A-Z0-9]{8,22}/g) || [];
+      tokens.forEach(function(t) {
+        let r = cleanResi(t);
+        // koreksi awalan SPX/TO yang sering salah baca
+        if (/^5PX/.test(r)) r = 'SPX' + r.slice(3);
+        if (/^SP[XK]/.test(r) && !r.startsWith('SPX')) r = 'SPX' + r.slice(3);
+        if (r && r.length >= 8 && list.indexOf(r) === -1) list.push(r);
+      });
+      // dedupe jaga urutan
+      const seen = {};
+      const out = [];
+      list.forEach(function(r) {
+        if (!seen[r]) { seen[r] = true; out.push(r); }
+      });
+      return out;
+    }
+
+    async function importStackOcr(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      const info = document.getElementById('stack-import-info');
+      if (info) {
+        info.classList.remove('hidden');
+        info.textContent = 'Menyiapkan foto untuk OCR...';
+      }
+      try {
+        const Tesseract = await ensureTesseract();
+        if (info) info.textContent = 'Memproses gambar (kontras & tajam)...';
+        let inputBlob;
+        try {
+          inputBlob = await preprocessImageForOcr(file);
+        } catch (pe) {
+          console.warn('preprocess gagal, pakai foto asli', pe);
+          inputBlob = file;
+        }
+        if (info) info.textContent = 'OCR membaca tulisan...';
+        const result = await Tesseract.recognize(inputBlob, 'eng', {
+          logger: function(m) {
+            if (!info) return;
+            if (m.status === 'recognizing text' && m.progress != null) {
+              info.textContent = 'OCR membaca... ' + Math.round(m.progress * 100) + '%';
+            } else if (m.status === 'loading language traineddata') {
+              info.textContent = 'Mengunduh model OCR (sekali saja)...';
+            } else if (m.status) {
+              info.textContent = 'OCR: ' + m.status;
+            }
+          },
+          // optimasi untuk nomor resi (huruf kapital + angka)
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+          preserve_interword_spaces: '1',
+          tessedit_pageseg_mode: '6' // assume uniform block of text
+        });
+        const text = (result && result.data && result.data.text) || '';
+        const list = extractResiFromOcrText(text);
+        if (!list.length) {
+          if (info) info.textContent = 'OCR selesai, resi tidak terdeteksi. Coba foto lebih dekat & terang.';
+          alert('Tidak menemukan nomor resi dari foto.\\nTips: foto tegak, terang, dekat ke daftar, hindari bayangan.');
+          return;
+        }
+        applyStackImport(list, 'Scan kertas');
+        if (info) info.textContent = 'OCR: ' + list.length + ' resi terdeteksi.';
+      } catch (err) {
+        console.error(err);
+        if (info) info.textContent = 'OCR gagal';
+        alert('OCR gagal: ' + (err.message || err));
+      }
+    }
+
+async function importStackFile(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      const name = (file.name || '').toLowerCase();
+      try {
+        if (name.endsWith('.csv') || name.endsWith('.txt') || file.type === 'text/csv' || file.type === 'text/plain') {
+          const text = await file.text();
+          applyStackImport(extractResiFromText(text), file.name);
+          return;
+        }
+        if (typeof XLSX === 'undefined') {
+          alert('Library Excel belum termuat. Coba refresh halaman.');
+          return;
+        }
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        let allText = '';
+        wb.SheetNames.forEach(function(sn) {
+          const sheet = wb.Sheets[sn];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+          rows.forEach(function(row) {
+            allText += (row || []).join(' ') + '\n';
+          });
+        });
+        applyStackImport(extractResiFromText(allText), file.name);
+      } catch (err) {
+        console.error(err);
+        alert('Gagal baca file: ' + (err.message || err));
+      }
+    }
+
+    async function importStackPdf(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      try {
+        // PDF text extract sederhana via browser PDF.js optional; fallback baca sebagai text jarang berhasil
+        if (typeof pdfjsLib === 'undefined') {
+          // dynamic load pdf.js
+          await new Promise(function(resolve, reject) {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+          });
+          if (window['pdfjsLib']) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          }
+        }
+        if (typeof pdfjsLib === 'undefined') {
+          alert('Gagal memuat pembaca PDF. Pakai Excel/CSV lebih disarankan.');
+          return;
+        }
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        let text = '';
+        const maxPages = Math.min(pdf.numPages, 30);
+        for (let i = 1; i <= maxPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          text += content.items.map(function(it){ return it.str; }).join(' ') + '\n';
+        }
+        applyStackImport(extractResiFromText(text), file.name + ' (PDF)');
+      } catch (err) {
+        console.error(err);
+        alert('Gagal baca PDF: ' + (err.message || err) + '. Lebih baik export Excel/CSV dari FMS.');
+      }
+    }
+
+
+    function loadStackList() {
+      const ta = document.getElementById('stack-source');
+      const raw = (ta && ta.value) || '';
+      const parts = raw.split(/[\s,;|]+/).map(function(x){ return cleanResi(x); }).filter(function(x){ return x && x.length >= 5; });
+      const uniq = [];
+      const seen = {};
+      parts.forEach(function(p){
+        if (!seen[p]) { seen[p] = true; uniq.push(p); }
+      });
+      stackReceiveMap = {};
+      stackReceiveOrder = uniq.slice();
+      stackExtra = [];
+      uniq.forEach(function(r){ stackReceiveMap[r] = false; });
+      renderStackChips();
+      const st = document.getElementById('stack-status');
+      if (st) st.textContent = uniq.length ? 'Siap tembak / scan' : 'Daftar kosong';
+      notifyScanFeedback(!!uniq.length, uniq.length ? ('Daftar ' + uniq.length + ' resi siap') : 'Tidak ada resi valid');
+      const pda = document.getElementById('pda-input');
+      if (pda) pda.focus();
+    }
+
+    function clearStackList() {
+      stackReceiveMap = {};
+      stackReceiveOrder = [];
+      stackExtra = [];
+      const ta = document.getElementById('stack-source');
+      if (ta) ta.value = '';
+      renderStackChips();
+      const st = document.getElementById('stack-status');
+      if (st) st.textContent = '';
+    }
+
+    function renderStackChips() {
+      const box = document.getElementById('stack-chips');
+      const prog = document.getElementById('stack-progress');
+      if (!box) return;
+      const total = stackReceiveOrder.length;
+      let ok = 0;
+      stackReceiveOrder.forEach(function(r){ if (stackReceiveMap[r]) ok++; });
+      if (prog) prog.textContent = ok + ' / ' + total;
+      let htmlChips = stackReceiveOrder.map(function(r){
+        const done = !!stackReceiveMap[r];
+        return '<span class="stack-chip ' + (done ? 'ok' : 'miss') + '">' + (done ? '✓ ' : '') + escapeHtml(r) + '</span>';
+      }).join('');
+      if (stackExtra.length) {
+        htmlChips += stackExtra.map(function(r){
+          return '<span class="stack-chip extra">? ' + escapeHtml(r) + '</span>';
+        }).join('');
+      }
+      box.innerHTML = htmlChips || '<span class="text-[11px] text-gray-400">Belum ada daftar</span>';
+    }
+
+    function handleStackScan(r) {
+      if (!stackReceiveOrder.length) {
+        notifyScanFeedback(false, 'Muat daftar resi dulu');
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(stackReceiveMap, r)) {
+        if (stackReceiveMap[r]) {
+          notifyScanFeedback(false, 'Sudah diterima: ' + r);
+        } else {
+          stackReceiveMap[r] = true;
+          renderStackChips();
+          const ok = stackReceiveOrder.filter(function(x){ return stackReceiveMap[x]; }).length;
+          const total = stackReceiveOrder.length;
+          notifyScanFeedback(true, '✓ Cocok ' + ok + '/' + total + ' · ' + r);
+          const st = document.getElementById('stack-status');
+          if (st) st.textContent = ok === total ? 'Semua diterima!' : ('Kurang ' + (total - ok));
+          if (ok === total) {
+            try { if (navigator.vibrate) navigator.vibrate([80, 40, 80, 40, 120]); } catch (e) {}
+          }
+        }
+      } else {
+        if (stackExtra.indexOf(r) === -1) stackExtra.push(r);
+        renderStackChips();
+        notifyScanFeedback(false, 'Tidak ada di daftar: ' + r);
+      }
+      lastScanned = r;
+      const sr = document.getElementById('scanned-resi');
+      const box = document.getElementById('scan-result');
+      if (sr) sr.textContent = r;
+      if (box) box.classList.remove('hidden');
+    }
+
+    function handleIncomingScan(r, source) {
+      r = cleanResi(r);
+      if (!r) return;
+      if (scanMode === 'stack') {
+        handleStackScan(r);
+        return;
+      }
+      // reuse camera success path
+      onScanSuccess(r);
+    }
+
+
+    function onScanSuccess(decodedText) {
+      const r = cleanResi(decodedText);
+      if (!r) return;
+      if (scanMode === 'stack') {
+        handleStackScan(r);
+        return;
+      }
+      lastScanned = r;
+      document.getElementById('scanned-resi').textContent = r;
+      document.getElementById('scan-result').classList.remove('hidden');
+
+      if (scanMode === 'batch') {
+        const now = Date.now();
+        // cooldown label yang sama agar tidak spam confirm
+        if (r === lastBatchAccepted && (now - lastBatchTime) < BATCH_COOLDOWN_MS) {
+          return;
+        }
+        if (resiListData.includes(r)) {
+          showScanToast('Duplikat di daftar: ' + r, 'dup');
+          lastBatchAccepted = r;
+          lastBatchTime = now;
+          return;
+        }
+        const result = tambahResiKeList(r, { silent: true, fromBatch: true });
+        if (result === 'ok') {
+          lastBatchAccepted = r;
+          lastBatchTime = now;
+          try { if (navigator.vibrate) navigator.vibrate(40); } catch (e) {}
+        } else if (result === 'dup_list') {
+          lastBatchAccepted = r;
+          lastBatchTime = now;
+        }
+        // dup_history_cancel: user menolak — tetap lanjut scan
+        return;
+      }
+
+      // mode single: stop setelah 1 scan
+      stopScan();
+    }
+
+    async function startScan() {
+      if (html5QrCode) return;
+      html5QrCode = new Html5Qrcode('reader');
+      try {
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 8, qrbox: { width: 250, height: 250 } },
+          onScanSuccess,
+          () => {}
+        );
+        document.getElementById('btn-start-scan').classList.add('hidden');
+        document.getElementById('btn-stop-scan').classList.remove('hidden');
+        if (scanMode === 'batch') {
+          document.getElementById('batch-resi-preview').classList.remove('hidden');
+          document.getElementById('batch-count').classList.remove('hidden');
+          showScanToast('Batch aktif — scan terus, tekan Stop jika selesai', 'ok');
+        }
+      } catch (err) {
+        alert('Gagal akses kamera. Pastikan izin kamera diberikan.\n' + err);
+        html5QrCode = null;
+      }
+    }
+    function stopScan() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => { html5QrCode.clear(); html5QrCode = null; }).catch(() => { html5QrCode = null; });
+      }
+      const btnStart = document.getElementById('btn-start-scan');
+      const btnStop = document.getElementById('btn-stop-scan');
+      if (btnStart) btnStart.classList.remove('hidden');
+      if (btnStop) btnStop.classList.add('hidden');
+    }
+    function gunakanHasilScan() {
+      if (scanMode === 'batch') {
+        if (!resiListData.length && lastScanned) tambahResiKeList(lastScanned, { silent: true });
+        stopScan();
+        showTab('history');
+        return;
+      }
+      if (!lastScanned) return;
+      showTab('history');
+      tambahResiKeList(lastScanned);
+      document.getElementById('resi').value = lastScanned;
+      cekResiDariForm();
+    }
+
+    // ===== STOK =====
+    function loadStok() {
+      const data = getData();
+      const list = data.stok || [];
+      const container = document.getElementById('stok-list');
+      if (!list.length) {
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Belum ada data stok</p>';
+        return;
+      }
+      container.innerHTML = list.map(item => `
+        <div class="card">
+          <div class="flex justify-between items-start">
+            <p class="font-semibold text-gray-800 text-sm">${escapeHtml(item.nama)}</p>
+            <p class="font-bold text-orange-700">${item.jumlah} <span class="text-xs font-normal text-gray-500">${escapeHtml(item.satuan)}</span></p>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">${escapeHtml(item.lokasi || '-')}</p>
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-[11px] text-gray-400">${formatDate(item.updated_at)}</span>
+            <div class="flex gap-3">
+              <button onclick='requirePin(() => editStok(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
+              <button onclick="requirePin(() => deleteStok('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    document.getElementById('form-stok').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = getData();
+      const id = document.getElementById('stok-edit-id').value;
+      const payload = {
+        nama: document.getElementById('stok-nama').value.trim(),
+        jumlah: Number(document.getElementById('stok-jumlah').value) || 0,
+        satuan: document.getElementById('stok-satuan').value.trim() || 'pcs',
+        lokasi: document.getElementById('stok-lokasi').value.trim()
+      };
+      if (id) {
+        const idx = data.stok.findIndex(s => s.id === id);
+        if (idx !== -1) data.stok[idx] = { ...data.stok[idx], ...payload, updated_at: new Date().toISOString() };
+      } else {
+        data.stok.push({ id: Date.now().toString(), ...payload, updated_at: new Date().toISOString() });
+      }
+      saveData(data);
+      resetStokForm();
+      loadStok();
+    });
+    function editStok(item) {
+      document.getElementById('stok-edit-id').value = item.id;
+      document.getElementById('stok-nama').value = item.nama;
+      document.getElementById('stok-jumlah').value = item.jumlah;
+      document.getElementById('stok-satuan').value = item.satuan;
+      document.getElementById('stok-lokasi').value = item.lokasi || '';
+      document.getElementById('stok-form-title').textContent = 'Edit Barang Stok';
+      document.getElementById('stok-btn-batal').classList.remove('hidden');
+    }
+    function resetStokForm() {
+      document.getElementById('form-stok').reset();
+      document.getElementById('stok-edit-id').value = '';
+      document.getElementById('stok-jumlah').value = 0;
+      document.getElementById('stok-satuan').value = 'pcs';
+      document.getElementById('stok-form-title').textContent = '+ Tambah Barang Stok';
+      document.getElementById('stok-btn-batal').classList.add('hidden');
+    }
+    function deleteStok(id) {
+      if (!confirm('Hapus data stok ini?')) return;
+      const data = getData();
+      data.stok = data.stok.filter(s => s.id !== id);
+      saveData(data);
+      loadStok();
+    }
+
+
+    // ===== SURAT JALAN =====
+    async function handleSjFoto(e) {
+      const files = Array.from(e.target.files || []);
+      e.target.value = '';
+      if (!files.length) return;
+      for (const file of files) {
+        if (sjFotoListData.length >= MAX_FOTO) {
+          alert('Maksimal ' + MAX_FOTO + ' foto');
+          break;
+        }
+        try {
+          const dataUrl = await compressImageFile(file);
+          sjFotoListData.push(dataUrl);
+        } catch (err) {
+          alert('Gagal proses foto: ' + (err.message || err));
+        }
+      }
+      renderSjFotoList();
+    }
+    function hapusSjFotoIndex(i) {
+      sjFotoListData.splice(i, 1);
+      renderSjFotoList();
+    }
+    function hapusSjFoto() {
+      sjFotoListData = [];
+      renderSjFotoList();
+      const cam = document.getElementById('sj-foto-input-cam');
+      const gal = document.getElementById('sj-foto-input-gal');
+      if (cam) cam.value = '';
+      if (gal) gal.value = '';
+    }
+    function loadSj() {
+      const data = getData();
+      const q = (document.getElementById('sj-search').value || '').toLowerCase();
+      let list = data.sj || [];
+      if (q) list = list.filter(s => (s.lt || '').toLowerCase().includes(q) || (s.tujuan || '').toLowerCase().includes(q));
+      list = list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      const container = document.getElementById('sj-list');
+      if (!list.length) {
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Belum ada surat jalan</p>';
+        return;
+      }
+      container.innerHTML = list.map(item => `
+        <div class="card">
+          <div class="flex justify-between items-start gap-2 mb-2">
+            <div>
+              <p class="font-semibold text-gray-800 text-sm font-mono">${escapeHtml(item.lt)}</p>
+              <p class="text-xs text-gray-500">${escapeHtml(item.tujuan || '-')}</p>
+            </div>
+            <span class="text-[11px] px-2 py-0.5 rounded-full ${item.high_value === 'Ya' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}">${item.high_value === 'Ya' ? 'High Value' : 'Normal'}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-xs mb-2">
+            <div class="bg-gray-50 rounded-lg p-2 text-center"><p class="text-gray-400">Berat</p><p class="font-semibold">${item.berat} kg</p></div>
+            <div class="bg-gray-50 rounded-lg p-2 text-center"><p class="text-gray-400">Jumlah</p><p class="font-semibold">${item.jumlah}</p></div>
+            <div class="bg-gray-50 rounded-lg p-2 text-center"><p class="text-gray-400">HV</p><p class="font-semibold">${escapeHtml(item.hv_nilai || item.high_value || '-')}</p></div>
+          </div>
+          ${(function(){ const photos = (item.foto_list && item.foto_list.length) ? item.foto_list : (item.foto ? [item.foto] : []); if (!photos.length) return ''; return '<div class="flex flex-wrap gap-1.5 mb-2">' + photos.map(function(src){ return '<img src="' + src + '" class="photo-preview" onclick="openLightbox(this.src)" />'; }).join('') + '</div>'; })()}
+          <div class="flex justify-between items-center mt-1">
+            <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
+            <div class="flex gap-3">
+              <button onclick="shareSj('${item.id}')" class="text-emerald-700 text-xs font-medium">Bagikan</button>
+              <button onclick="printSj('${item.id}')" class="text-green-600 text-xs font-medium">Cetak</button>
+              <button onclick='requirePin(() => editSj(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
+              <button onclick="requirePin(() => deleteSj('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    document.getElementById('form-sj').addEventListener('submit', (e) => {
+      e.preventDefault();
+      try {
+        const data = getData();
+        if (!data.sj) data.sj = [];
+        const id = document.getElementById('sj-edit-id').value;
+        const lt = (document.getElementById('sj-lt').value || '').trim().toUpperCase();
+        const berat = Number(document.getElementById('sj-berat').value);
+        const jumlah = Number(document.getElementById('sj-jumlah').value);
+        if (!lt || lt.length < 3) {
+          alert('Nomor LT wajib diisi');
+          document.getElementById('sj-lt').focus();
+          return;
+        }
+        if (isNaN(berat) || berat < 0) {
+          alert('Berat barang wajib diisi');
+          document.getElementById('sj-berat').focus();
+          return;
+        }
+        if (isNaN(jumlah) || jumlah < 0) {
+          alert('Jumlah barang wajib diisi');
+          document.getElementById('sj-jumlah').focus();
+          return;
+        }
+        const payload = {
+          lt: lt,
+          berat: berat || 0,
+          jumlah: jumlah || 0,
+          high_value: document.getElementById('sj-hv').value,
+          hv_nilai: document.getElementById('sj-hv-nilai').value.trim(),
+          tujuan: document.getElementById('sj-tujuan').value.trim(),
+          foto: sjFotoListData[0] || null,
+          foto_list: sjFotoListData.slice()
+        };
+        if (id) {
+          const idx = data.sj.findIndex(s => s.id === id);
+          if (idx !== -1) data.sj[idx] = { ...data.sj[idx], ...payload, updated_at: new Date().toISOString() };
+          else data.sj.push({ id: id, ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+        } else {
+          data.sj.push({ id: Date.now().toString(), ...payload, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+        }
+        saveData(data);
+        resetSjForm();
+        loadSj();
+        if (typeof getToken === 'function' && getToken()) {
+          if (typeof setSyncStatus === 'function') setSyncStatus('Menyimpan SJ ke cloud...', false);
+          pushCloudData();
+        } else if (typeof setSyncStatus === 'function') {
+          setSyncStatus('SJ tersimpan di HP (belum login cloud)', false);
+        }
+      } catch (err) {
+        console.error('simpan SJ gagal', err);
+        alert('Gagal simpan Surat Jalan: ' + (err.message || err));
+      }
+    });
+    function editSj(item) {
+      document.getElementById('sj-edit-id').value = item.id;
+      document.getElementById('sj-lt').value = item.lt || '';
+      document.getElementById('sj-berat').value = item.berat ?? '';
+      document.getElementById('sj-jumlah').value = item.jumlah ?? '';
+      document.getElementById('sj-hv').value = item.high_value || 'Tidak';
+      document.getElementById('sj-hv-nilai').value = item.hv_nilai || '';
+      document.getElementById('sj-tujuan').value = item.tujuan || '';
+      if (Array.isArray(item.foto_list) && item.foto_list.length) {
+        sjFotoListData = item.foto_list.slice();
+      } else if (item.foto) {
+        sjFotoListData = [item.foto];
+      } else {
+        sjFotoListData = [];
+      }
+      renderSjFotoList();
+      document.getElementById('sj-form-title').textContent = 'Edit Surat Jalan';
+      document.getElementById('sj-btn-batal').classList.remove('hidden');
+      showTab('sj');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function resetSjForm() {
+      document.getElementById('form-sj').reset();
+      document.getElementById('sj-edit-id').value = '';
+      document.getElementById('sj-form-title').textContent = '+ Buat Surat Jalan Pemberangkatan';
+      document.getElementById('sj-btn-batal').classList.add('hidden');
+      hapusSjFoto();
+    }
+    function deleteSj(id) {
+      if (!confirm('Hapus surat jalan ini?')) return;
+      const data = getData();
+      data.sj = (data.sj || []).filter(s => s.id !== id);
+      saveData(data);
+      loadSj();
+      if (typeof getToken === 'function' && getToken()) pushCloudData();
+    }
+    function printSj(id) {
+      const data = getData();
+      const item = (data.sj || []).find(s => s.id === id);
+      if (!item) return;
+      const w = window.open('', '_blank');
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Surat Jalan ${escapeHtml(item.lt)}</title>
+        <style>
+          body{font-family:system-ui,sans-serif;padding:24px;color:#111}
+          h1{font-size:18px;margin:0 0 4px}
+          .sub{color:#666;font-size:12px;margin-bottom:16px}
+          table{width:100%;border-collapse:collapse;margin-top:12px}
+          td,th{border:1px solid #ccc;padding:8px;text-align:left;font-size:13px}
+          th{background:#f3f4f6}
+          .foto{max-width:280px;margin-top:12px;border-radius:8px}
+          @media print{.no-print{display:none}}
+        </style></head><body>
+        <h1>SURAT JALAN PEMBERANGKATAN</h1>
+        <div class="sub">DC Siborong Borong · Powered by Amos rcpdroid ~86</div>
+        <table>
+          <tr><th>Nomor LT (Line Trip)</th><td>${escapeHtml(item.lt)}</td></tr>
+          <tr><th>Berat Barang</th><td>${item.berat} kg</td></tr>
+          <tr><th>Jumlah Barang</th><td>${item.jumlah}</td></tr>
+          <tr><th>High Value</th><td>${escapeHtml(item.high_value)}${item.hv_nilai ? ' — ' + escapeHtml(item.hv_nilai) : ''}</td></tr>
+          <tr><th>Tujuan / Keterangan</th><td>${escapeHtml(item.tujuan || '-')}</td></tr>
+          <tr><th>Tanggal</th><td>${formatDate(item.created_at)}</td></tr>
+        </table>
+        ${(function(){ const photos = (item.foto_list && item.foto_list.length) ? item.foto_list : (item.foto ? [item.foto] : []); return photos.map(function(src){ return '<img class="foto" src="' + src + '" />'; }).join(''); })()}
+        <p class="no-print" style="margin-top:20px"><button onclick="window.print()">Cetak</button></p>
+        <script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>
+        </body></html>`;
+      w.document.write(html);
+      w.document.close();
+    }
+
+
+    // ===== LAPORAN =====
+    function loadLaporan() {
+      const data = getData();
+      const list = data.history || [];
+      document.getElementById('stat-total').textContent = list.length;
+      document.getElementById('stat-pending').textContent = list.filter(h => h.status === 'received').length;
+      document.getElementById('stat-proses').textContent = list.filter(h => h.status === 'packed' || h.status === 'transporting').length;
+      document.getElementById('stat-selesai').textContent = list.filter(h => h.status === 'transported' || h.status === 'arrival').length;
+      const masalahCount = {};
+      list.forEach(h => { masalahCount[h.masalah] = (masalahCount[h.masalah] || 0) + 1; });
+      const sorted = Object.entries(masalahCount).sort((a,b) => b[1] - a[1]);
+      document.getElementById('stat-masalah').innerHTML = sorted.length
+        ? sorted.map(([m,c]) => '<div class="flex justify-between"><span>' + escapeHtml(m) + '</span><span class="font-semibold">' + c + '</span></div>').join('')
+        : '<p class="text-gray-400 text-sm">Belum ada data</p>';
+    }
+
+    function exportCSV() {
+      const data = getData();
+      const list = data.history || [];
+      if (!list.length) return alert('Tidak ada data');
+      const headers = ['ID','Resi','Jumlah Resi','Masalah','Status','Keterangan','SPX Status','Tanggal'];
+      const rows = list.map(h => {
+        const allResi = (h.resi_list && h.resi_list.length) ? h.resi_list.join(' | ') : (h.resi || '');
+        return [h.id, allResi.replace(/,/g,';'), (h.resi_list && h.resi_list.length) || 1, h.masalah, h.status, (h.keterangan||'').replace(/,/g,';'), (h.spx_status||'').replace(/,/g,';'), h.created_at];
+      });
+      const csv = headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'history-dc-siborong-' + new Date().toISOString().slice(0,10) + '.csv';
+      link.click();
+    }
+    function clearAllData() {
+      if (!confirm('Yakin hapus SEMUA data?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      loadHistory(); loadStok(); loadSj(); loadLaporan();
+      alert('Data lokal dihapus.');
+    }
+
+    // ===== PIN =====
+    function getPin() { return localStorage.getItem(PIN_KEY) || DEFAULT_PIN; }
+    function setPin(pin) { localStorage.setItem(PIN_KEY, pin); }
+    function requirePin(actionFn, title) {
+      pendingPinAction = actionFn;
+      document.getElementById('pin-title').textContent = title || 'Masukkan PIN';
+      document.getElementById('pin-desc').textContent = 'Diperlukan untuk Edit / Hapus data';
+      document.getElementById('pin-input').value = '';
+      document.getElementById('pin-error').classList.add('hidden');
+      document.getElementById('pin-modal').classList.add('show');
+      setTimeout(() => document.getElementById('pin-input').focus(), 100);
+    }
+    function closePinModal() {
+      document.getElementById('pin-modal').classList.remove('show');
+      pendingPinAction = null;
+    }
+    function submitPin() {
+      const input = document.getElementById('pin-input').value.trim();
+      if (input === getPin()) {
+        const fn = pendingPinAction;
+        closePinModal();
+        if (fn) fn();
+      } else {
+        document.getElementById('pin-error').classList.remove('hidden');
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-input').focus();
+      }
+    }
+    document.getElementById('pin-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitPin(); });
+    function showUbahPin() {
+      const lama = prompt('Masukkan PIN lama:');
+      if (lama === null) return;
+      if (lama !== getPin()) { alert('PIN lama salah'); return; }
+      const baru = prompt('Masukkan PIN baru (4-8 karakter):');
+      if (baru === null || !baru.trim()) return;
+      if (baru.trim().length < 4 || baru.trim().length > 8) { alert('PIN harus 4-8 karakter'); return; }
+      setPin(baru.trim());
+      alert('PIN berhasil diubah');
+      closePinModal();
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '-';
+      return new Date(iso).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    }
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeLightbox(); closePinModal(); }
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+    }
+
+    document.getElementById('resi').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        tambahResiKeList();
+      }
+    });
+    renderResiList();
+    (function(){ const el=document.getElementById('ts-photo-toggle'); if(el) el.checked = localStorage.getItem(TS_PHOTO_KEY) !== '0'; })();
+    initAuth().then(() => { loadHistory(); loadStok(); loadSj(); loadLaporan(); });
+    // loadHistory();
+  </script>
+  <script src="./chatbot.js"></script>
+</body>
+</html>
