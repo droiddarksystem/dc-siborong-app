@@ -1721,10 +1721,19 @@
       loadHistory();
     }
     
+    function getShareOwnerLine() {
+      const u = (typeof getAuthUser === 'function') ? getAuthUser() : null;
+      if (u && (u.name || u.email)) {
+        return 'Atas nama: *' + (u.name || u.email) + '*' + (u.email && u.name ? (' (' + u.email + ')') : '');
+      }
+      return 'Atas nama: _(belum login)_';
+    }
+
     function buildHistoryShareText(item) {
       const resis = (item.resi_list && item.resi_list.length) ? item.resi_list : (item.resi ? [item.resi] : []);
       const lines = [
         '*DC Siborong — Laporan Masalah*',
+        getShareOwnerLine(),
         '',
         'Jenis: ' + (item.masalah || '-'),
         'Status: ' + (item.status || '-'),
@@ -1743,6 +1752,7 @@
     function buildSjShareText(item) {
       const lines = [
         '*DC Siborong — Surat Jalan*',
+        getShareOwnerLine(),
         '',
         'No. LT: ' + (item.lt || '-'),
         'Berat: ' + (item.berat != null ? item.berat + ' kg' : '-'),
