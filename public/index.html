@@ -2210,19 +2210,44 @@
     
     function notifyScanFeedback(ok, msg) {
       try {
-        if (navigator.vibrate) navigator.vibrate(ok ? [40, 40, 40] : [120, 60, 120]);
+        if (navigator.vibrate) {
+          navigator.vibrate(ok ? [40, 40, 40] : [160, 80, 160, 80, 200]);
+        }
       } catch (e) {}
       try {
         const Ctx = window.AudioContext || window.webkitAudioContext;
         if (Ctx) {
           const ctx = new Ctx();
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.connect(g); g.connect(ctx.destination);
-          o.frequency.value = ok ? 880 : 220;
-          g.gain.value = 0.05;
-          o.start();
-          setTimeout(function(){ o.stop(); ctx.close(); }, ok ? 120 : 250);
+          const now = ctx.currentTime;
+          if (ok) {
+            // cocok: bip tinggi pendek
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.frequency.value = 920;
+            g.gain.value = 0.08;
+            o.connect(g); g.connect(ctx.destination);
+            o.start(now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+            o.stop(now + 0.15);
+            setTimeout(function(){ try { ctx.close(); } catch (e) {} }, 200);
+          } else {
+            // tidak sesuai: nada rendah lebih keras + 2x bip
+            function beep(start, freq, dur, vol) {
+              const o = ctx.createOscillator();
+              const g = ctx.createGain();
+              o.type = 'square';
+              o.frequency.value = freq;
+              g.gain.setValueAtTime(vol, start);
+              g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+              o.connect(g); g.connect(ctx.destination);
+              o.start(start);
+              o.stop(start + dur + 0.02);
+            }
+            beep(now, 180, 0.22, 0.14);
+            beep(now + 0.28, 160, 0.28, 0.16);
+            setTimeout(function(){ try { ctx.close(); } catch (e) {} }, 700);
+          }
         }
       } catch (e) {}
       if (typeof showScanToast === 'function') showScanToast(msg, ok ? 'ok' : 'dup');
