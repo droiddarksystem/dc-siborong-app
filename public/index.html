@@ -392,6 +392,45 @@
     .stack-chip.extra { background:#fef3c7; border-color:#fcd34d; color:#92400e; }
     #pda-input:focus { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.2); }
 
+    
+    body.dark-mode {
+      --bg: #1c1917;
+      --card: #292524;
+      --text: #fafaf9;
+      --muted: #a8a29e;
+      --line: #44403c;
+      --shadow: 0 4px 20px rgba(0,0,0,0.35);
+      background: linear-gradient(180deg, #1c1917 0%, #292524 50%, #1c1917 100%) !important;
+      color: var(--text);
+    }
+    body.dark-mode .card {
+      background: #292524;
+      border-color: #44403c;
+      color: #fafaf9;
+    }
+    body.dark-mode .bottom-nav {
+      background: #1c1917;
+      border-top-color: #44403c;
+    }
+    body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
+      background: #1c1917 !important;
+      color: #fafaf9 !important;
+      border-color: #57534e !important;
+    }
+    body.dark-mode .text-gray-800, body.dark-mode .text-gray-700 { color: #e7e5e4 !important; }
+    body.dark-mode .text-gray-500, body.dark-mode .text-gray-400 { color: #a8a29e !important; }
+    body.dark-mode .bg-white { background: #292524 !important; }
+    body.dark-mode .bg-gray-50, body.dark-mode .bg-gray-100 { background: #1c1917 !important; }
+    body.dark-mode .border-gray-200, body.dark-mode .border-gray-300 { border-color: #44403c !important; }
+    .pill-unresolved { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; font-size:10px; font-weight:700; padding:2px 6px; border-radius:999px; }
+    body.dark-mode .pill-unresolved { background:#450a0a; color:#fecaca; border-color:#7f1d1d; }
+    .pinned-card { border-color: #f97316 !important; box-shadow: 0 0 0 2px rgba(249,115,22,.25); }
+    .quick-chip { display:inline-block; font-size:11px; padding:4px 8px; border-radius:999px; background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; margin:2px; cursor:pointer; }
+    body.dark-mode .quick-chip { background:#431407; color:#fdba74; border-color:#9a3412; }
+    .cloud-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px; }
+    .cloud-dot.on { background:#22c55e; box-shadow:0 0 6px #22c55e; }
+    .cloud-dot.off { background:#f59e0b; }
+
     /* Chatbot */
     #chatbot-fab{position:fixed;right:16px;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));z-index:50;width:56px;height:56px;border-radius:50%;border:none;background:linear-gradient(135deg,#c2410c,#f97316);color:#fff;font-size:24px;box-shadow:0 8px 24px rgba(234,88,12,.4);display:flex;align-items:center;justify-content:center}
     #chatbot-fab:active{transform:scale(.94)}
@@ -454,7 +493,11 @@
       <div class="user-box">
         <p class="text-[10px] text-orange-100" id="user-email-label">Powered by</p>
         <p class="text-[11px] font-medium" id="user-name-label">Amos rcpdroid ~86</p>
-        <button type="button" id="btn-logout" onclick="logoutCloud()" class="hidden text-[10px] text-orange-100 underline mt-0.5">Keluar</button>
+        <div class="flex items-center gap-1 mt-0.5 justify-end flex-wrap">
+          <span id="cloud-indicator" class="text-[10px] text-orange-100/90"></span>
+          <button type="button" id="btn-dark-mode" onclick="toggleDarkMode()" class="text-sm px-1.5 py-0.5 rounded-lg bg-white/15 border border-white/20" title="Mode gelap">🌙</button>
+          <button type="button" id="btn-logout" onclick="logoutCloud()" class="hidden text-[10px] text-orange-100 underline">Keluar</button>
+        </div>
       </div>
     </div>
   </header>
@@ -509,7 +552,23 @@
             </div>
           </div>
           <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Shift</label>
+            <select id="shift-select" onchange="setShift(this.value)" class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none">
+              <option value="pagi">Pagi</option>
+              <option value="siang">Siang</option>
+              <option value="malam">Malam</option>
+            </select>
+          </div>
+          <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">Keterangan</label>
+            <div class="mb-1.5 flex flex-wrap" id="ket-templates">
+              <span class="quick-chip" onclick="applyKetTemplate('Segel rusak')">Segel rusak</span>
+              <span class="quick-chip" onclick="applyKetTemplate('Berat selisih')">Berat selisih</span>
+              <span class="quick-chip" onclick="applyKetTemplate('Kemasan penyok')">Kemasan penyok</span>
+              <span class="quick-chip" onclick="applyKetTemplate('Label tidak terbaca')">Label tidak terbaca</span>
+              <span class="quick-chip" onclick="applyKetTemplate('Paket basah')">Paket basah</span>
+              <span class="quick-chip" onclick="applyKetTemplate('Isi tidak sesuai')">Isi tidak sesuai</span>
+            </div>
             <input type="text" id="keterangan" placeholder="Detail tambahan..." class="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm outline-none" />
           </div>
           <div id="spx-info" class="hidden bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-orange-800"></div>
@@ -557,7 +616,32 @@
           <span class="text-xs text-gray-400 hidden sm:inline">s/d</span>
           <input type="date" id="filter-date-to" onchange="loadHistory()" class="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none bg-white" />
           <button type="button" onclick="clearDateFilter()" class="px-3 py-2 text-xs text-gray-600 bg-gray-100 rounded-xl whitespace-nowrap">Reset Tanggal</button>
-          <button onclick="exportCSV()" class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">⬇ CSV</button>
+          
+      <div class="card">
+        <h3 class="font-semibold text-sm text-gray-800 mb-2">Laporan & Tools</h3>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <button type="button" onclick="shareDailyReport()" class="bg-orange-600 text-white py-2.5 rounded-xl text-xs font-semibold">Bagikan laporan harian</button>
+          <button type="button" onclick="exportAllExcel()" class="bg-green-600 text-white py-2.5 rounded-xl text-xs font-semibold">Export semua Excel</button>
+          <label class="bg-white border border-orange-200 text-orange-800 py-2.5 rounded-xl text-xs font-semibold text-center cursor-pointer">
+            Import backup
+            <input type="file" accept=".xlsx,.xls,.csv,.json" class="hidden" onchange="importBackupFile(event)" />
+          </label>
+          <button type="button" onclick="bulkDeleteByDate()" class="bg-red-50 text-red-700 border border-red-200 py-2.5 rounded-xl text-xs font-semibold">Hapus massal (tanggal)</button>
+        </div>
+        <div class="mb-2">
+          <label class="block text-[10px] text-gray-500 mb-1">Filter laporan</label>
+          <div class="flex gap-2">
+            <input type="date" id="lap-date-from" class="flex-1 border border-gray-300 rounded-xl px-2 py-2 text-xs" onchange="loadLaporan()" />
+            <input type="date" id="lap-date-to" class="flex-1 border border-gray-300 rounded-xl px-2 py-2 text-xs" onchange="loadLaporan()" />
+          </div>
+          <select id="lap-masalah" class="w-full border border-gray-300 rounded-xl px-2 py-2 text-xs mt-2" onchange="loadLaporan()">
+            <option value="">Semua jenis masalah</option>
+          </select>
+        </div>
+        <div id="lap-sj-recap" class="text-xs text-gray-600 mb-2"></div>
+        <div id="dash-shift-counters" class="text-xs text-gray-600 mb-2"></div>
+      </div>
+      <button onclick="exportCSV()" class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap">⬇ CSV</button>
         </div>
       </div>
       <div id="history-list" class="space-y-2"><p class="text-center text-gray-400 text-sm py-8">Memuat data...</p></div>
@@ -611,9 +695,13 @@
             <button type="button" onclick="loadStackList()" class="flex-1 bg-emerald-700 text-white py-2 rounded-xl text-xs font-semibold">Muat Daftar</button>
             <button type="button" onclick="clearStackList()" class="px-3 bg-white border border-emerald-300 text-emerald-800 py-2 rounded-xl text-xs font-semibold">Reset</button>
           </div>
-          <div class="flex items-center justify-between text-xs mb-2">
+          <div class="flex items-center justify-between text-xs mb-2 gap-2 flex-wrap">
             <span class="font-semibold text-emerald-900">Progress: <span id="stack-progress">0 / 0</span></span>
             <span id="stack-status" class="text-emerald-700"></span>
+          </div>
+          <div class="flex gap-2 mb-2">
+            <button type="button" id="btn-stack-missing" onclick="toggleStackMissingOnly()" class="flex-1 bg-white border border-emerald-300 text-emerald-800 py-1.5 rounded-lg text-[11px] font-semibold">Tampilkan sisa saja</button>
+            <button type="button" onclick="exportStackReceive()" class="flex-1 bg-emerald-700 text-white py-1.5 rounded-lg text-[11px] font-semibold">Export Excel</button>
           </div>
           <div id="stack-chips" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto"></div>
         </div>
@@ -883,6 +971,7 @@
 
   <script>
     const STORAGE_KEY = 'dc_siborong_data_v3';
+    const SETTINGS_KEY = 'dc_siborong_settings_v1';
     const PIN_KEY = 'dc_siborong_pin';
     const DEFAULT_PIN = '1234';
     const API_TRACK = '/api/track';
@@ -896,6 +985,43 @@
     let lastScanned = '';
     let pendingPinAction = null;
     let lastSpxStatus = '';
+
+    
+    function getSettings() {
+      try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (e) { return {}; }
+    }
+    function saveSettings(s) {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s || {}));
+    }
+    function getCurrentShift() {
+      const s = getSettings();
+      return s.shift || 'pagi';
+    }
+    function applyDarkMode(on) {
+      document.body.classList.toggle('dark-mode', !!on);
+      const btn = document.getElementById('btn-dark-mode');
+      if (btn) btn.textContent = on ? '☀️' : '🌙';
+    }
+    function toggleDarkMode() {
+      const s = getSettings();
+      s.darkMode = !s.darkMode;
+      saveSettings(s);
+      applyDarkMode(s.darkMode);
+    }
+    function setShift(val) {
+      const s = getSettings();
+      s.shift = val;
+      saveSettings(s);
+      const el = document.getElementById('shift-select');
+      if (el) el.value = val;
+      if (typeof refreshDashboardCounters === 'function') refreshDashboardCounters();
+    }
+    function refreshCloudIndicator() {
+      const el = document.getElementById('cloud-indicator');
+      if (!el) return;
+      const on = !!(typeof getToken === 'function' && getToken());
+      el.innerHTML = '<span class="cloud-dot ' + (on ? 'on' : 'off') + '"></span>' + (on ? 'Cloud' : 'Lokal');
+    }
 
     function getData() {
       try {
@@ -1863,7 +1989,10 @@
         const to = new Date(dateTo + 'T23:59:59');
         list = list.filter(h => new Date(h.created_at) <= to);
       }
-      list = list.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      list = list.sort((a,b) => {
+        if (!!b.pinned - !!a.pinned) return (!!b.pinned - !!a.pinned);
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
       const container = document.getElementById('history-list');
       if (!list.length) {
         container.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Belum ada data history</p>';
@@ -1985,6 +2114,7 @@
           <div class="flex justify-between items-center mt-2">
             <span class="text-[11px] text-gray-400">${formatDate(item.created_at)}</span>
             <div class="flex gap-3">
+              <button onclick="togglePinHistory('${item.id}')" class="text-orange-600 text-xs font-medium">${item.pinned ? 'Unpin' : 'Pin'}</button>
               <button onclick="shareHistory('${item.id}')" class="text-emerald-700 text-xs font-medium">Bagikan</button>
               <button onclick='requirePin(() => editHistory(${JSON.stringify(item).replace(/'/g,"&#39;")}), "PIN untuk Edit")' class="text-orange-600 text-xs font-medium">Edit</button>
               <button onclick="requirePin(() => deleteHistory('${item.id}'), 'PIN untuk Hapus')" class="text-red-600 text-xs font-medium">Hapus</button>
@@ -2014,7 +2144,8 @@
         keterangan: document.getElementById('keterangan').value.trim(),
         foto: fotoListData[0] || null,
         foto_list: fotoListData.slice(),
-        spx_status: lastSpxStatus || document.getElementById('spx-info').dataset.status || null
+        spx_status: lastSpxStatus || document.getElementById('spx-info').dataset.status || null,
+        shift: (document.getElementById('shift-select') && document.getElementById('shift-select').value) || getCurrentShift()
       };
       if (id) {
         const idx = data.history.findIndex(h => h.id === id);
@@ -2455,7 +2586,8 @@ async function importStackFile(e) {
       let ok = 0;
       stackReceiveOrder.forEach(function(r){ if (stackReceiveMap[r]) ok++; });
       if (prog) prog.textContent = ok + ' / ' + total;
-      let htmlChips = stackReceiveOrder.map(function(r){
+      const orderView = stackMissingOnly ? stackReceiveOrder.filter(function(r){ return !stackReceiveMap[r]; }) : stackReceiveOrder;
+      let htmlChips = orderView.map(function(r){
         const done = !!stackReceiveMap[r];
         return '<span class="stack-chip ' + (done ? 'ok' : 'miss') + '">' + (done ? '✓ ' : '') + escapeHtml(r) + '</span>';
       }).join('');
@@ -2864,15 +2996,285 @@ async function importStackFile(e) {
 
 
     // ===== LAPORAN =====
+    
+    function applyKetTemplate(t) {
+      const el = document.getElementById('keterangan');
+      if (!el) return;
+      const cur = (el.value || '').trim();
+      el.value = cur ? (cur + '; ' + t) : t;
+    }
+
+    function hoursSince(iso) {
+      const t = Date.parse(iso || 0);
+      if (!t) return 0;
+      return (Date.now() - t) / 3600000;
+    }
+
+    function isUnresolved(h) {
+      const st = (h.status || '').toLowerCase();
+      return (st === 'received' || st === 'packed' || st === 'proses' || st === 'pending') && hoursSince(h.created_at) >= 8;
+    }
+
+    function togglePinHistory(id) {
+      const data = getData();
+      const idx = (data.history || []).findIndex(function(h){ return h.id === id; });
+      if (idx < 0) return;
+      data.history[idx].pinned = !data.history[idx].pinned;
+      data.history[idx].updated_at = new Date().toISOString();
+      saveData(data);
+      loadHistory();
+    }
+
+    function refreshDashboardCounters() {
+      const data = getData();
+      const shift = getCurrentShift();
+      const today = new Date().toISOString().slice(0, 10);
+      const hist = (data.history || []).filter(function(h) {
+        return (h.created_at || '').slice(0, 10) === today && (h.shift || shift) === shift;
+      });
+      const sj = (data.sj || []).filter(function(s) {
+        return (s.created_at || '').slice(0, 10) === today;
+      });
+      const el = document.getElementById('dash-shift-counters');
+      if (el) {
+        el.innerHTML = 'Hari ini · shift <b>' + shift + '</b>: ' + hist.length + ' masalah · ' + sj.length + ' SJ · ' +
+          'unresolved: <b>' + (data.history || []).filter(isUnresolved).length + '</b>';
+      }
+    }
+
+    function filterLaporanList(list) {
+      const from = (document.getElementById('lap-date-from') || {}).value || '';
+      const to = (document.getElementById('lap-date-to') || {}).value || '';
+      const masalah = (document.getElementById('lap-masalah') || {}).value || '';
+      return (list || []).filter(function(h) {
+        const d = (h.created_at || '').slice(0, 10);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        if (masalah && h.masalah !== masalah) return false;
+        return true;
+      });
+    }
+
+    function shareDailyReport() {
+      const data = getData();
+      const today = new Date().toISOString().slice(0, 10);
+      const hist = (data.history || []).filter(function(h){ return (h.created_at || '').slice(0,10) === today; });
+      const sj = (data.sj || []).filter(function(s){ return (s.created_at || '').slice(0,10) === today; });
+      const masalahCount = {};
+      hist.forEach(function(h){ masalahCount[h.masalah || '-'] = (masalahCount[h.masalah || '-'] || 0) + 1; });
+      const owner = (typeof getShareOwnerLine === 'function') ? getShareOwnerLine() : '';
+      const lines = [
+        '*Laporan Harian DC Siborong*',
+        owner,
+        'Tanggal: ' + today,
+        'Shift: ' + getCurrentShift(),
+        '',
+        'Total masalah: ' + hist.length,
+        'Total SJ: ' + sj.length,
+        'Unresolved (≥8 jam): ' + (data.history || []).filter(isUnresolved).length,
+        '',
+        '*Per jenis masalah:*'
+      ];
+      Object.keys(masalahCount).forEach(function(k){ lines.push('- ' + k + ': ' + masalahCount[k]); });
+      let kg = 0, koli = 0;
+      sj.forEach(function(s){ kg += Number(s.berat) || 0; koli += Number(s.jumlah) || 0; });
+      lines.push('', '*Surat Jalan:* ' + sj.length + ' LT · ' + kg + ' kg · ' + koli + ' koli');
+      lines.push('', '_Dikirim dari app DC Siborong_');
+      shareText(lines.join('\n'), 'Laporan Harian DC Siborong');
+    }
+
+    function downloadTextFile(filename, content, mime) {
+      const blob = new Blob([content], { type: mime || 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+    }
+
+    function exportAllExcel() {
+      const data = getData();
+      if (typeof XLSX === 'undefined') {
+        // fallback CSV multi
+        exportCSV();
+        return;
+      }
+      const wb = XLSX.utils.book_new();
+      const histRows = (data.history || []).map(function(h) {
+        return {
+          id: h.id,
+          resi: (h.resi_list && h.resi_list.length) ? h.resi_list.join(' | ') : (h.resi || ''),
+          jumlah_resi: (h.resi_list && h.resi_list.length) || 1,
+          masalah: h.masalah,
+          status: h.status,
+          keterangan: h.keterangan,
+          shift: h.shift || '',
+          pinned: h.pinned ? 'ya' : '',
+          created_at: h.created_at
+        };
+      });
+      const sjRows = (data.sj || []).map(function(s) {
+        return {
+          id: s.id, lt: s.lt, berat: s.berat, jumlah: s.jumlah,
+          high_value: s.high_value, hv_nilai: s.hv_nilai, tujuan: s.tujuan, created_at: s.created_at
+        };
+      });
+      const stokRows = (data.stok || []).map(function(s) {
+        return { id: s.id, nama: s.nama || s.item || '', qty: s.qty || s.jumlah || '', created_at: s.created_at };
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(histRows), 'History');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sjRows), 'SuratJalan');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stokRows), 'Stok');
+      XLSX.writeFile(wb, 'dc-siborong-backup-' + new Date().toISOString().slice(0,10) + '.xlsx');
+    }
+
+    async function importBackupFile(e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      if (!confirm('Import akan menggabungkan data dari file ke data sekarang. Lanjut?')) return;
+      try {
+        const name = (file.name || '').toLowerCase();
+        let incoming = { history: [], stok: [], sj: [] };
+        if (name.endsWith('.json')) {
+          const text = await file.text();
+          const j = JSON.parse(text);
+          incoming.history = j.history || [];
+          incoming.stok = j.stok || [];
+          incoming.sj = j.sj || [];
+        } else {
+          if (typeof XLSX === 'undefined') { alert('Library Excel belum siap'); return; }
+          const buf = await file.arrayBuffer();
+          const wb = XLSX.read(buf, { type: 'array' });
+          const sheetHist = wb.Sheets['History'] || wb.Sheets[wb.SheetNames[0]];
+          const sheetSj = wb.Sheets['SuratJalan'];
+          const sheetStok = wb.Sheets['Stok'];
+          if (sheetHist) {
+            incoming.history = XLSX.utils.sheet_to_json(sheetHist).map(function(r) {
+              return {
+                id: String(r.id || Date.now()) + Math.random().toString(16).slice(2,6),
+                resi: (String(r.resi || '').split('|')[0] || '').trim(),
+                resi_list: String(r.resi || '').split('|').map(function(x){ return x.trim(); }).filter(Boolean),
+                masalah: r.masalah || '',
+                status: r.status || 'received',
+                keterangan: r.keterangan || '',
+                shift: r.shift || '',
+                created_at: r.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+            });
+          }
+          if (sheetSj) {
+            incoming.sj = XLSX.utils.sheet_to_json(sheetSj).map(function(r) {
+              return {
+                id: String(r.id || Date.now()) + Math.random().toString(16).slice(2,6),
+                lt: r.lt || '', berat: Number(r.berat) || 0, jumlah: Number(r.jumlah) || 0,
+                high_value: r.high_value || 'Tidak', hv_nilai: r.hv_nilai || '', tujuan: r.tujuan || '',
+                created_at: r.created_at || new Date().toISOString(), updated_at: new Date().toISOString()
+              };
+            });
+          }
+          if (sheetStok) {
+            incoming.stok = XLSX.utils.sheet_to_json(sheetStok);
+          }
+        }
+        const data = getData();
+        data.history = (data.history || []).concat(incoming.history || []);
+        data.sj = (data.sj || []).concat(incoming.sj || []);
+        data.stok = (data.stok || []).concat(incoming.stok || []);
+        saveData(data);
+        loadHistory();
+        if (typeof loadSj === 'function') loadSj();
+        if (typeof loadLaporan === 'function') loadLaporan();
+        alert('Import selesai: +' + (incoming.history||[]).length + ' history, +' + (incoming.sj||[]).length + ' SJ');
+      } catch (err) {
+        alert('Import gagal: ' + (err.message || err));
+      }
+    }
+
+    function bulkDeleteByDate() {
+      const from = prompt('Hapus data sampai tanggal (YYYY-MM-DD). Kosongkan = batal');
+      if (!from) return;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) { alert('Format tanggal salah'); return; }
+      if (!confirm('Hapus History & SJ dengan tanggal ≤ ' + from + '?')) return;
+      const data = getData();
+      const beforeH = (data.history || []).length;
+      const beforeS = (data.sj || []).length;
+      data.history = (data.history || []).filter(function(h){ return (h.created_at || '').slice(0,10) > from; });
+      data.sj = (data.sj || []).filter(function(s){ return (s.created_at || '').slice(0,10) > from; });
+      saveData(data);
+      loadHistory();
+      if (typeof loadSj === 'function') loadSj();
+      loadLaporan();
+      alert('Terhapus history: ' + (beforeH - data.history.length) + ', SJ: ' + (beforeS - data.sj.length));
+    }
+
+    let stackMissingOnly = false;
+    function toggleStackMissingOnly() {
+      stackMissingOnly = !stackMissingOnly;
+      const btn = document.getElementById('btn-stack-missing');
+      if (btn) btn.textContent = stackMissingOnly ? 'Tampilkan semua' : 'Tampilkan sisa saja';
+      renderStackChips();
+    }
+
+    function exportStackReceive() {
+      if (!stackReceiveOrder.length) { alert('Daftar kosong'); return; }
+      const rows = stackReceiveOrder.map(function(r) {
+        return { resi: r, status: stackReceiveMap[r] ? 'diterima' : 'belum', extra: '' };
+      });
+      (stackExtra || []).forEach(function(r) {
+        rows.push({ resi: r, status: 'extra', extra: 'tidak ada di daftar' });
+      });
+      if (typeof XLSX !== 'undefined') {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'StakReceive');
+        XLSX.writeFile(wb, 'stak-receive-' + new Date().toISOString().slice(0,10) + '.xlsx');
+      } else {
+        const csv = 'resi,status,extra\\n' + rows.map(function(r){ return r.resi + ',' + r.status + ',' + (r.extra||''); }).join('\\n');
+        downloadTextFile('stak-receive.csv', csv);
+      }
+    }
+
+
     function loadLaporan() {
       const data = getData();
-      const list = data.history || [];
+      let list = data.history || [];
+      // isi opsi jenis masalah
+      const sel = document.getElementById('lap-masalah');
+      if (sel && sel.options.length <= 1) {
+        const set = {};
+        (data.history || []).forEach(function(h){ if (h.masalah) set[h.masalah] = true; });
+        Object.keys(set).sort().forEach(function(m) {
+          const o = document.createElement('option');
+          o.value = m; o.textContent = m;
+          sel.appendChild(o);
+        });
+      }
+      list = filterLaporanList(list);
       document.getElementById('stat-total').textContent = list.length;
       document.getElementById('stat-pending').textContent = list.filter(h => h.status === 'received').length;
       document.getElementById('stat-proses').textContent = list.filter(h => h.status === 'packed' || h.status === 'transporting').length;
       document.getElementById('stat-selesai').textContent = list.filter(h => h.status === 'transported' || h.status === 'arrival').length;
       const masalahCount = {};
       list.forEach(h => { masalahCount[h.masalah] = (masalahCount[h.masalah] || 0) + 1; });
+      // SJ recap
+      const sjBox = document.getElementById('lap-sj-recap');
+      if (sjBox) {
+        const from = (document.getElementById('lap-date-from') || {}).value || '';
+        const to = (document.getElementById('lap-date-to') || {}).value || '';
+        let sj = data.sj || [];
+        sj = sj.filter(function(s) {
+          const d = (s.created_at || '').slice(0,10);
+          if (from && d < from) return false;
+          if (to && d > to) return false;
+          return true;
+        });
+        let kg = 0, koli = 0;
+        sj.forEach(function(s){ kg += Number(s.berat)||0; koli += Number(s.jumlah)||0; });
+        sjBox.innerHTML = '<b>Rekap LT:</b> ' + sj.length + ' surat jalan · ' + kg + ' kg · ' + koli + ' koli';
+      }
+      refreshDashboardCounters();
+      refreshCloudIndicator();
       const sorted = Object.entries(masalahCount).sort((a,b) => b[1] - a[1]);
       document.getElementById('stat-masalah').innerHTML = sorted.length
         ? sorted.map(([m,c]) => '<div class="flex justify-between"><span>' + escapeHtml(m) + '</span><span class="font-semibold">' + c + '</span></div>').join('')
